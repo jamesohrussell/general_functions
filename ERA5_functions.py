@@ -117,12 +117,13 @@ def get_E5_ss_2D_fiti(datadir,fileid,timestr):
   # Import libraries
   import glob
   from netCDF4 import Dataset
-  import TIPS_functions as fns
+  import time_functions as tfns
+  import misc_functions as mfns
 
   # Select which file the time is within
   allfiles = sorted(glob.glob(datadir+fileid+"*"))
   ds0 = Dataset(allfiles[0])
-  ctime = fns.time_since(timestr,ds0.variables["time"].units)
+  ctime = tfns.time_since(timestr,ds0.variables["time"].units)
   for fi in allfiles:
     fh = Dataset(fi)
     if fh.variables["time"][0]<=ctime<=fh.variables["time"][-1]:
@@ -133,7 +134,7 @@ def get_E5_ss_2D_fiti(datadir,fileid,timestr):
   if ctime in times:
     timi = times.index(ctime)
   else:
-    timi = fns.k_closest(times,ctime,2)
+    timi = mfns.k_closest(times,ctime,2)
 
   return(fh,timi,times,ctime)
 
@@ -299,7 +300,8 @@ def get_E5_ss_4D_fiti(datadir,fileid,timestr1,timestr2):
   # Import libraries
   import glob
   from netCDF4 import Dataset
-  import TIPS_functions as fns
+  import time_functions as tfns
+  import misc_functions as mfns
   import numpy as np
 
   # Find all files 
@@ -307,9 +309,9 @@ def get_E5_ss_4D_fiti(datadir,fileid,timestr1,timestr2):
 
   # Convert first and last time to same units
   ds0 = Dataset(allfiles[0])
-  time1 = fns.time_since(timestr1+":00:00",
+  time1 = tfns.time_since(timestr1+":00:00",
                          ds0.variables["time"].units)
-  time2 = fns.time_since(timestr2+":00:00",
+  time2 = tfns.time_since(timestr2+":00:00",
                          ds0.variables["time"].units)
 
   # Loop over all files and initialize variables
@@ -330,8 +332,8 @@ def get_E5_ss_4D_fiti(datadir,fileid,timestr1,timestr2):
       print("First and last file")
 
       # Select the indexes of the relevant times
-      timi1 = fns.k_closest(times1,time1,1)[0]
-      timi2 = fns.k_closest(times1,time2,1)[0]
+      timi1 = mfns.k_closest(times1,time1,1)[0]
+      timi2 = mfns.k_closest(times1,time2,1)[0]
 
       # Get times and append file to filenames
       times = times1[timi1:timi2+1]
@@ -347,7 +349,7 @@ def get_E5_ss_4D_fiti(datadir,fileid,timestr1,timestr2):
       print("First file only")
 
       # Select the index of the relevant time
-      timi1 = fns.k_closest(times1,time1,1)[0]
+      timi1 = mfns.k_closest(times1,time1,1)[0]
 
       # Get times and append file to filenames
       times = times1[timi1:]
@@ -363,7 +365,7 @@ def get_E5_ss_4D_fiti(datadir,fileid,timestr1,timestr2):
       print("Last file")
     
       # Select the index of the relevant time
-      timi2 = fns.k_closest(times1,time2,1)[0]
+      timi2 = mfns.k_closest(times1,time2,1)[0]
 
       # Get times
       times.extend(times1[0:timi2+1])
@@ -408,17 +410,17 @@ def get_E5_ss_4D_coords(fh,lat1,lat2,lon1,lon2):
 
   # Import libraries
   import numpy as np
-  import TIPS_functions as fns
+  import misc_functions as mfns
 
   # Find lat and lon indices
   if lon1<0: lon1 = lon1+360
   if lon2<0: lon2 = lon2+360
   lat = fh.variables["latitude"][:]
   lon = fh.variables["longitude"][:]
-  lati  = np.squeeze([fns.k_closest(lat,lat2,1), 
-                      fns.k_closest(lat,lat1,1)])
-  loni  = np.squeeze([fns.k_closest(lon,lon1,1),
-                      fns.k_closest(lon,lon2,1)])
+  lati  = np.squeeze([mfns.k_closest(lat,lat2,1), 
+                      mfns.k_closest(lat,lat1,1)])
+  loni  = np.squeeze([mfns.k_closest(lon,lon1,1),
+                      mfns.k_closest(lon,lon2,1)])
 
   # Get coordinates of that subset
   if loni[0]<loni[1]:
@@ -466,12 +468,12 @@ def get_E5_ss_4D_levels(fh,lev1,lev2):
 
   # Import libraries
   import numpy as np
-  import TIPS_functions as fns
+  import misc_functions as mfns
 
   # Find lat and lon indices
   lev  = fh.variables["level"][:]
-  levi = np.squeeze([fns.k_closest(lev,lev1,1), 
-                     fns.k_closest(lev,lev2,1)])
+  levi = np.squeeze([mfns.k_closest(lev,lev1,1), 
+                     mfns.k_closest(lev,lev2,1)])
 
   # Get coordinates of that subset
   levs = np.squeeze(list(
@@ -505,12 +507,12 @@ def get_E5_ss_4D_2levels(fh,lev1,lev2):
 
   # Import libraries
   import numpy as np
-  import TIPS_functions as fns
+  import misc_functions as mfns
 
   # Find lat and lon indices
   lev  = fh.variables["level"][:]
-  levi = np.squeeze([fns.k_closest(lev,lev1,1),
-                     fns.k_closest(lev,lev2,1)])
+  levi = np.squeeze([mfns.k_closest(lev,lev1,1),
+                     mfns.k_closest(lev,lev2,1)])
 
   # Return data
   return(levi)

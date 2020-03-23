@@ -31,6 +31,7 @@ def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
 
   # Import libraries
   import matplotlib.colors as colors
+  import numpy as np
 
   # Make new colormap
   new_cmap = colors.LinearSegmentedColormap.from_list(
