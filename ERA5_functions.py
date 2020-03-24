@@ -96,7 +96,7 @@ def get_E5_subset_2D(datadir,fileid,varname,timestr,clon,clat,hda):
 # Get subset of a variable from ERA5 files
 #==================================================================
 
-def get_E5_ss_2D_fiti(datadir,fileid,timestr):
+def get_E5_ss_2D_fiti(allfiles,timestr):
   """
   Find the file and output the time indices given a time
 
@@ -121,7 +121,6 @@ def get_E5_ss_2D_fiti(datadir,fileid,timestr):
   import misc_functions as mfns
 
   # Select which file the time is within
-  allfiles = sorted(glob.glob(datadir+fileid+"*"))
   ds0 = Dataset(allfiles[0])
   ctime = tfns.time_since(timestr,ds0.variables["time"].units)
   for fi in allfiles:
@@ -163,16 +162,16 @@ def get_E5_ss_2D_coords(fh,clon,clat,hda):
 
   # Import libraries
   import numpy as np
-  import TIPS_functions as fns
+  import misc_functions as mfns
 
   # Find lat and lon indices
   if clon<0: clon = clon+360
   lat = fh.variables["latitude"][:]
   lon = fh.variables["longitude"][:]
-  lati  = np.squeeze([fns.k_closest(lat,clat+hda,1), 
-                      fns.k_closest(lat,clat-hda,1)])
-  loni  = np.squeeze([fns.k_closest(lon,clon-hda,1),
-                      fns.k_closest(lon,clon+hda,1)])
+  lati  = np.squeeze([mfns.k_closest(lat,clat+hda,1), 
+                      mfns.k_closest(lat,clat-hda,1)])
+  loni  = np.squeeze([mfns.k_closest(lon,clon-hda,1),
+                      mfns.k_closest(lon,clon+hda,1)])
      
   # Get coordinates of that subset
   coords = np.meshgrid(
@@ -833,4 +832,183 @@ def get_E5_ss_4D_levdiffvar(files,varname,timi,levi,lati,loni):
   return(varss)
 
 
+#==================================================================
+# Get subset of a variable from ERA5 files
+#==================================================================
+
+def get_E5_ss_files(datadir,fileid,timestr1,timestr2):
+  """
+  Find all files with data between two times and output the 
+   indices of the times within the first and last files
+
+  Input: 
+   1,2) Data directory and file identifier
+   3,4) Strings indicating the first and last times in format:
+       YYYY-MM-DD hh
+
+  Output:
+   1) A list of strings indicating the paths and files
+   2,3) Either a scalar or list of indices indicating the time 
+    index(es) within that file corresponding to either the first
+    or last times
+
+  Requires glob and netCDF4
+  """
+
+  # Import libraries
+  import glob
+  from netCDF4 import Dataset
+  import time_functions as tfns
+  import misc_functions as mfns
+  import numpy as np
+
+  # Find all files 
+  allfiles = sorted(glob.glob(datadir+fileid+"*"))
+
+  # Convert first and last time to same units
+  ds0 = Dataset(allfiles[0])
+  time1 = tfns.time_since(timestr1+":00:00",
+                         ds0.variables["time"].units)
+  time2 = tfns.time_since(timestr2+":00:00",
+                         ds0.variables["time"].units)
+
+  # Loop over all files and initialize variables
+  append = False
+  ssfiles = []
+  for fi in allfiles:
+    fh = Dataset(fi)
+
+    print(fi)
+
+    # Read the times
+    times1 = list(fh.variables["time"][:])
+    
+    # If first and second time is within current file
+    if times1[0]<=time1<=times1[-1] and \
+       times1[0]<=time2<=times1[-1]:
+
+      print("First and last file")
+      ssfiles.append(fi)
+
+      # Break the loop
+      break
+
+    # If first time only is within current file
+    if times1[0]<=time1<=times1[-1] and not \
+       times1[0]<=time2<=times1[-1]:
+
+      print("First file only")
+      ssfiles.append(fi)
+
+      # Move on to next file
+      append=True
+      continue
+
+    # If last time is within current file
+    if times1[0]<=time2<=times1[-1]:
+
+      print("Last file")
+    
+      ssfiles.append(fi)
+
+      # Break the loop
+      break
+
+    # Middle times
+    if append:
+
+      print("Middle file")
+      ssfiles.append(fi)
+
+  # Return data
+  return(ssfiles)
+
+#==================================================================
+# Get subset of a variable from ERA5 files
+#==================================================================
+
+def get_E5_ss_fiti(allfiles,timestr):
+  """
+  Find the file and output the time indices given a time
+
+  Input: 
+   1) A set of paths indicating the files to search
+   2) A string indicating the current time in format:
+       yyyy-mm-dd HH:MM:SS
+
+  Output:
+   1) A handle for the datafile
+   2) Indices for the time coordinates
+   3) A list of the times from the file
+   4) The time to interpolate to, converted to ERA5 time units
+
+  Requires 
+  """
+
+  # Import libraries
+  import glob
+  from netCDF4 import Dataset
+  import time_functions as tfns
+  import misc_functions as mfns
+
+  # Select which file the time is within
+  ds0 = Dataset(allfiles[0])
+  ctime = tfns.time_since(timestr,ds0.variables["time"].units)
+  for fi in allfiles:
+    fh = Dataset(fi)
+    if fh.variables["time"][0]<=ctime<=fh.variables["time"][-1]:
+      break
+
+  # Select the index(es) of the relevant time(s) 
+  times = list(fh.variables["time"][:])
+  if ctime in times:
+    timi = times.index(ctime)
+  else:
+    timi = mfns.k_closest(times,ctime,2)
+
+  return(fh,timi,times,ctime)
+
+#==================================================================
+# Get subset of a variable from ERA5 files
+#==================================================================
+
+def get_E5_ss_coords(fh,clon,clat,hda):
+  """
+  Find the horizontal coordinates and indices for a subset of 
+   ERA5 data
+
+  Input: 
+   1) A handle for the datafile
+   2,3) Th
+   1,2) Indices for the longitude and latitude coordinatese central longitude and latitude for the subset
+   4) Half the size of the subset in degrees (i.e. for a 10x10 
+       degree subset hda==5)
+
+  Output:
+   3,4) Flattened lists of the longitude and latitude coordinates 
+
+  Requires numpy 1.16.3 (conda install -c anaconda numpy; 
+   https://pypi.org/project/numpy/)
+  """
+
+  # Import libraries
+  import numpy as np
+  import misc_functions as mfns
+
+  # Find lat and lon indices
+  if clon<0: clon = clon+360
+  lat = fh.variables["latitude"][:]
+  lon = fh.variables["longitude"][:]
+  lati  = np.squeeze([mfns.k_closest(lat,clat+hda,1), 
+                      mfns.k_closest(lat,clat-hda,1)])
+  loni  = np.squeeze([mfns.k_closest(lon,clon-hda,1),
+                      mfns.k_closest(lon,clon+hda,1)])
+     
+  # Get coordinates of that subset
+  coords = np.meshgrid(
+   fh.variables["latitude"][lati[0]:lati[1]+1],
+   fh.variables["longitude"][loni[0]:loni[1]+1])
+
+  # Return data
+  return(loni,lati)
 
