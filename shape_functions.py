@@ -168,6 +168,7 @@ def fit_ellipse_svd(x,y,fit=False,plot=False):
 
   # Import libraries
   import numpy as np
+  import geophys_functions as gfns
 
   # Get number of points
   N = len(x)
@@ -183,7 +184,7 @@ def fit_ellipse_svd(x,y,fit=False,plot=False):
   U, S = np.linalg.svd(np.stack((xc, yc)))[0:2]
 
   # Calculate angle of axes
-  axdir = [calc_direction(center[0],center[1],
+  axdir = [gfns.calc_direction(center[0],center[1],
            center[0]+a[0],center[1]+a[1]) for a in U]
   axdir = [d-180 if d>180 else d for d in axdir]
 
@@ -191,7 +192,7 @@ def fit_ellipse_svd(x,y,fit=False,plot=False):
   axlen = [2*np.sqrt(2/N)*l for l in S]
 
   # Calculate geopgraphic distance of axes
-  axdist =  [calc_distance(center[0] - ((axlen[i]/2)* \
+  axdist =  [gfns.calc_distance(center[0] - ((axlen[i]/2)* \
                        np.sin(np.deg2rad(axdir[i]))), \
                        center[1] - ((axlen[i]/2)* \
                        np.cos(np.deg2rad(axdir[i]))), \
@@ -220,7 +221,6 @@ def fit_ellipse_svd(x,y,fit=False,plot=False):
   # Plot ellipse and data
   if plot:
 
-
     # Make plot with data
     print("Plotting ellipse")
     import matplotlib.pyplot as plt
@@ -229,7 +229,7 @@ def fit_ellipse_svd(x,y,fit=False,plot=False):
     plt.grid(True)
 
     # Plot ellipse
-    plt.plot(fit[0, :], fit[1, :], 'r')
+    plt.plot(fitxy[0, :], fitxy[1, :], 'r')
 
     # Plot center
     plt.plot(center[0],center[1],".r")
@@ -258,3 +258,6 @@ def fit_ellipse_svd(x,y,fit=False,plot=False):
     # Return center, and direction and length of major and minor
     #  axes
     return(center,axdir,axdist)
+
+
+

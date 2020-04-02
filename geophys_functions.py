@@ -233,8 +233,8 @@ def calc_direction(lon1,lat1,lon2,lat2):
   # All other cases
   else:
     direction = np.rad2deg(np.arctan(
-     calc_distance(lon1,lat1,lon2,lat2)/
-     calc_distance(lon1,lat1,lon2,lat2)))
+     calc_distance(lon1,lat2,lon2,lat2)/
+     calc_distance(lon1,lat1,lon1,lat2)))
 
   # Adjust for quadrant
   if lat1>lat2 and lon1<lon2: direction = 180-direction

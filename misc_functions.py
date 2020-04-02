@@ -107,7 +107,7 @@ def create_2d_dataframe(x,y,dx,dy,data):
 #==================================================================
 
 def write_var(varname,long_name,description,dimname,dtype,units,
-              fileout,datain,f):
+              fileout,datain,f,fv):
   """
   Generic script for defining/opening a variable in a 
    netcdf file and then writing the associated data to the 
@@ -115,7 +115,8 @@ def write_var(varname,long_name,description,dimname,dtype,units,
   """
 
   try:
-    datafile = fileout.createVariable(varname, dtype, (dimname))
+    datafile = fileout.createVariable(varname, dtype, (dimname),
+     fill_value=fv)
   except:
     #print(varname + " already defined")
     datafile = fileout.variables[varname]
@@ -123,7 +124,7 @@ def write_var(varname,long_name,description,dimname,dtype,units,
   datafile.long_name   = long_name
   datafile.description = description
   datafile.units = units
-  datafile[:] = datain 
+  datafile[:] = datain
 
 
 
@@ -159,3 +160,6 @@ def write_group(groupname,long_name,description,units,
    datafile.format = format1
    for k,v in datain.items():
      setattr(datadatafile, k,  v)
+
+
+
