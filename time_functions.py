@@ -23,9 +23,21 @@
 #      diurnal cycle). Not the actual local time.
 #
 #==================================================================
+# Import libraries
+#==================================================================
+
+from numba import jit
+import datetime as dt
+from datetime import datetime
+from dateutil import tz
+
+
+
+#==================================================================
 # Calculate time since given units
 #==================================================================
 
+@jit(nopython==True)
 def time_since(dateandtime,reftimeandunits):
   """
   Calculate the date and time in units since a date
@@ -46,9 +58,6 @@ def time_since(dateandtime,reftimeandunits):
 
   Requires datetime
   """
-
-  # Import libraries
-  import datetime as dt
 
   # Split units string and make date and time object
   splitrtu = reftimeandunits.split(" ")
@@ -86,6 +95,7 @@ def time_since(dateandtime,reftimeandunits):
 # Calculate time since given units
 #==================================================================
 
+@jit(nopython==True)
 def time_since_inv(datenumber,reftimeandunits):
   """
   Convert a date number (e.g. time units since a date) to a date 
@@ -107,9 +117,6 @@ def time_since_inv(datenumber,reftimeandunits):
 
   Requires datetime
   """
-
-  # Import libraries
-  import datetime as dt
 
   # Split units string and make date and time object
   splitrtu = reftimeandunits.split(" ")
@@ -141,6 +148,7 @@ def time_since_inv(datenumber,reftimeandunits):
 # Calculate local time
 #==================================================================
 
+@jit(nopython==True)
 def utc_to_local(utcdatetime,timezone):
  
   """
@@ -157,10 +165,6 @@ def utc_to_local(utcdatetime,timezone):
 
   Requires datetime
   """
-
-  # Import libraries
-  from datetime import datetime
-  from dateutil import tz
 
   # Get time zones 
   from_zone = tz.gettz('UTC')
@@ -184,6 +188,7 @@ def utc_to_local(utcdatetime,timezone):
 # Calculate local solar time based on longitude
 #==================================================================
 
+@jit(nopython==True)
 def calc_local_solar_time(yr,mo,dy,hr,mn,sc,lon):
   """
   Calculates the local solar time given a date and time and 
@@ -205,15 +210,12 @@ def calc_local_solar_time(yr,mo,dy,hr,mn,sc,lon):
    diurnal cycle.
   """
 
-  # Import libraries
-  import datetime
-
   # Make a datetime object for the current date and time
-  timenow = datetime.datetime(int(yr),int(mo),int(dy),
+  timenow = dt.datetime(int(yr),int(mo),int(dy),
                               int(hr),int(mn),int(sc))
  
   # Calculate time with offset added
-  newtime = timenow + datetime.timedelta(hours=lon*(24./360.))
+  newtime = timenow + dt.timedelta(hours=lon*(24./360.))
   
   # Return time in same format as input
   return(str(newtime.year).zfill(4)+\
@@ -222,3 +224,5 @@ def calc_local_solar_time(yr,mo,dy,hr,mn,sc,lon):
          str(newtime.hour).zfill(2)+\
          str(newtime.minute).zfill(2)+\
          str(newtime.second).zfill(2))
+
+

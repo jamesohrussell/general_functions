@@ -61,9 +61,26 @@
 #      closest if it is within largest possible TC radius.
 #
 #==================================================================
+# Import libraries
+#==================================================================
+
+from numba import jit
+from area import area
+import numpy
+from geopy.distance import geodesic
+import datetime as dt
+import netCDF4 as nc
+import time
+import fiona
+import cartopy.io.shapereader as shpreader
+import shapely.geometry as sgeom
+from shapely.prepared import prep
+
+#==================================================================
 # Calculate area 
 #==================================================================
 
+@jit(nopython=True)
 def calc_area(lons,lats,dx,dy):
   """
   Calculates the area on earth given a set of pixels.
@@ -80,10 +97,6 @@ def calc_area(lons,lats,dx,dy):
    Note: At time of writing this was not available 
    through conda and had to be installed manually.
   """
-
-  # Import libraries
-  from area import area
-  import numpy
 
   # Loop over all pixels
   for l in range(0,len(lats)):
@@ -113,6 +126,7 @@ def calc_area(lons,lats,dx,dy):
 # Calculate area and volumetric rain rate
 #==================================================================
 
+@jit(nopython=True)
 def calc_area_and_volrainrate(lons,lats,rain,dx,dy):
   """
   Calculates the area on earth and the volumetric rain 
@@ -133,9 +147,6 @@ def calc_area_and_volrainrate(lons,lats,rain,dx,dy):
    Note: At time of writing this was not available 
    through conda and had to be installed manually.
   """
-
-  # Import libraries
-  from area import area
 
   # Loop over all pixels
   for l in range(0,len(lats)):
@@ -170,6 +181,7 @@ def calc_area_and_volrainrate(lons,lats,rain,dx,dy):
 # Calculate distance between two points on earth
 #==================================================================
 
+@jit(nopython=True)
 def calc_distance(lon1,lat1,lon2,lat2):
   """
   Calculates distance on earth between two sets of 
@@ -185,9 +197,6 @@ def calc_distance(lon1,lat1,lon2,lat2):
    https://pypi.org/project/geopy/).
   """
 
-  # Import libraries
-  from geopy.distance import geodesic
-
   # Calculate distance on earth
   dist = geodesic((lat1,lon1),(lat2,lon2)).m
 
@@ -200,6 +209,7 @@ def calc_distance(lon1,lat1,lon2,lat2):
 # Calculate direction on earth
 #==================================================================
 
+@jit(nopython=True)
 def calc_direction(lon1,lat1,lon2,lat2):
   """
   Calculates direction on earth between two sets of 
@@ -214,10 +224,6 @@ def calc_direction(lon1,lat1,lon2,lat2):
   Requires geopy 1.20.0 (conda install -c conda-forge geopy; 
    https://pypi.org/project/geopy/) and numpy.
   """
-
-  # Import libraries
-  from geopy.distance import geodesic
-  import numpy as np
 
   # Case where both locations are the same
   if abs(lat1-lat2)<0.0001 and abs(lon1-lon2)<0.0001:
@@ -250,6 +256,7 @@ def calc_direction(lon1,lat1,lon2,lat2):
 # Calculate distance and angle of a vector on earth
 #==================================================================
 
+@jit(nopython=True)
 def calc_distdir(lon1,lat1,lon2,lat2):
   """
   Calculates distance on earth between two sets of latitude, 
@@ -282,6 +289,7 @@ def calc_distdir(lon1,lat1,lon2,lat2):
 # Calculate propagation
 #==================================================================
 
+@jit(nopython=True)
 def calc_propagation(date1,lon1,lat1,date2,lon2,lat2):
   """
   Calculates propagation speed and direction on earth 
@@ -297,9 +305,6 @@ def calc_propagation(date1,lon1,lat1,date2,lon2,lat2):
   Output is the speed in units of m/s and angle the 
    propagation vector makes from north.
   """
-
-  # Import libraries
-  import datetime as dt
 
   # Calculate distance and propagation direction
   distance,propdir = calc_distdir(lon1,lat1,lon2,lat2)
@@ -324,6 +329,7 @@ def calc_propagation(date1,lon1,lat1,date2,lon2,lat2):
 # Function to load land shape file
 #==================================================================
 
+@jit(nopython=True)
 def load_land(res='50m'):
   """
   Load land shape file
@@ -341,12 +347,6 @@ def load_land(res='50m'):
    https://pypi.org/project/Shapely/)
    
   """
-
-  # Import libraries
-  import fiona
-  import cartopy.io.shapereader as shpreader
-  import shapely.geometry as sgeom
-  from shapely.prepared import prep
   
   # Pull in land shape files
   geoms = fiona.open(shpreader.natural_earth(resolution=res,
@@ -364,6 +364,7 @@ def load_land(res='50m'):
 # Function to check if a point is over land
 #==================================================================
 
+@jit(nopython=True)
 def is_land(lon, lat, res='50m'):
   """
   Check if a location is over land. 
@@ -382,19 +383,9 @@ def is_land(lon, lat, res='50m'):
    https://pypi.org/project/Shapely/)
    
   """
-
-  # Import libraries
-  import fiona
-  import cartopy.io.shapereader as shpreader
-  import shapely.geometry as sgeom
-  from shapely.prepared import prep
   
   # Pull in land shape files
-  geoms = fiona.open(shpreader.natural_earth(resolution=res,
-                           category='physical', name='land'))
-  land_geom = sgeom.MultiPolygon([sgeom.shape(geom['geometry'])
-                                for geom in geoms])
-  land = prep(land_geom)
+  land = load_land(res=res)
   
   # Check if point is over land and return information
   return(land.contains(sgeom.Point(lon, lat)))
@@ -405,6 +396,7 @@ def is_land(lon, lat, res='50m'):
 # Interpolate TC information to a time
 #==================================================================
 
+@jit(nopython=True)
 def interp_TC(dtim,fTC):
   """
   Interpolates information on a TC to a given a time. 
@@ -426,12 +418,6 @@ def interp_TC(dtim,fTC):
   Requires geopy 1.20.0 (conda install -c conda-forge geopy; 
    https://pypi.org/project/geopy/).
   """
-
-  # Import libraries 
-  import datetime
-  import time
-  from geopy.distance import geodesic 
-  import numpy as np
 
   # Convert current time to TC time units
   #  *Hard coded for IBTrACS default unit of days
@@ -558,6 +544,7 @@ def interp_TC(dtim,fTC):
 # Calculate TC information
 #==================================================================
 
+@jit(nopython=True)
 def calc_if_TC(lon,lat,TCinfo,fTC):
   """
   Calculates proximity to TC. 
@@ -579,11 +566,6 @@ def calc_if_TC(lon,lat,TCinfo,fTC):
    https://pypi.org/project/geopy/).
   """
 
-  # Import libraries
-  from geopy.distance import geodesic 
-  import numpy as np
-  import netCDF4 as nc
-
   # Identify closest TC
   dist_loc_cTC = [0.]*len(TCinfo["TClat"])
   for i in range(len(TCinfo["TClat"])):
@@ -604,3 +586,6 @@ def calc_if_TC(lon,lat,TCinfo,fTC):
                   ind_closest_TC][0]]))
 
   return(dist_cTC,in_TC,TCname,TCradius)
+
+
+

@@ -22,9 +22,18 @@
 #      dictionary to a netcdf file.
 #
 #==================================================================
+# Import libraries
+#==================================================================
+
+from numba import jit
+import numpy as np
+import pandas as pd
+
+#==================================================================
 # Find indices of k closest values in list
 #==================================================================
 
+@jit(nopython=True)
 def k_closest(lst,value,k):
   """
   Find the indices of the k closest values in list to a given value
@@ -41,8 +50,6 @@ def k_closest(lst,value,k):
   Requires numpy 1.16.3 (conda install -c anaconda numpy; 
    https://pypi.org/project/numpy/)
   """
-
-  import numpy as np
 
   # Find the absolute differences between the value and all values
   #  in the list
@@ -64,6 +71,7 @@ def k_closest(lst,value,k):
 # Create 2D dataframe given a list of coordinates and data
 #==================================================================
 
+@jit(nopython=True)
 def create_2d_dataframe(x,y,dx,dy,data):
   """
   Creates a dataframe given a set of pixel locations, pixel sizes,
@@ -81,10 +89,6 @@ def create_2d_dataframe(x,y,dx,dy,data):
   Requires numpy 1.16.3 and pandas 0.24.2 (conda install -c 
    conda-forge pandas; https://pypi.org/project/pandas/)
   """
-
-  # Import libraries
-  import numpy as np
-  import pandas as pd
 
   # Create coordinates
   ny = [round(i,2) for i in np.arange(min(y)-2*dy,max(y)+2*dy,dy)]

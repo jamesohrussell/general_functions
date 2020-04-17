@@ -9,9 +9,18 @@
 #   - Truncates an existing colormap
 #
 #==================================================================
+# Import libraries
+#==================================================================
+
+from numba import jit
+import matplotlib.colors as colors
+import numpy as np
+
+#==================================================================
 # Truncates a colormap
 #==================================================================
 
+@jit(nopython=True)
 def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
   """
   Create a new colormap by truncating an existing colormap. Taken 
@@ -29,13 +38,12 @@ def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
   Requires matplotlib.
   """
 
-  # Import libraries
-  import matplotlib.colors as colors
-  import numpy as np
-
   # Make new colormap
   new_cmap = colors.LinearSegmentedColormap.from_list(
    'trunc({n},{a:.2f},{b:.2f})'.format(n=cmap.name, a=minval, 
    b=maxval),cmap(np.linspace(minval, maxval, n)))
 
   return new_cmap
+
+
+

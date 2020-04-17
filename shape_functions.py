@@ -22,9 +22,20 @@
 #      a set of points in 2d
 #
 #==================================================================
+# Import libraries
+#==================================================================
+
+from numba import jit
+import scipy.ndimage as ndimg
+import numpy as np
+from matplotlib.path import Path
+import geophys_functions as gfns
+
+#==================================================================
 # Identify contiguous areas in 2d field 
 #==================================================================
 
+@jit(nopython=True)
 def label_wdiags(array):
   """
   This is a small adjustment to the scipy.ndimage.label() function
@@ -43,9 +54,6 @@ def label_wdiags(array):
    https://pypi.org/project/scipy/)
   """
 
-  # Import libraries
-  import scipy.ndimage as ndimg
-
   # Setup a 2x2 binary array to account for diagonals
   s = ndimg.generate_binary_structure(2,2)
 
@@ -61,6 +69,7 @@ def label_wdiags(array):
 # Find unique corner points from a list of pixel centers
 #==================================================================
 
+@jit(nopython=True)
 def find_corners(coords,dx,dy,dp=2):
   """
   Defines a list of coordinates for corners given a list of pixel
@@ -81,9 +90,6 @@ def find_corners(coords,dx,dy,dp=2):
    no coordinates that are the same even if two pixels share a 
    corner).
   """
-
-  # Import libraries
-  import numpy as np
 
   # Define the distances to a corner from center
   dx2=dx/2; dy2=dy/2
@@ -108,6 +114,7 @@ def find_corners(coords,dx,dy,dp=2):
 # Find which points are inside a shape
 #==================================================================
 
+@jit(nopython=True)
 def points_in_shape(verts,points,widen=0):
   """
   Finds and returns all grid points within a list of vertices 
@@ -131,9 +138,6 @@ def points_in_shape(verts,points,widen=0):
    matplotlib; https://pypi.org/project/matplotlib/)
   """
 
-  # Import libraries
-  from matplotlib.path import Path
-
   # Define the shape
   p = Path(verts)
 
@@ -149,6 +153,7 @@ def points_in_shape(verts,points,widen=0):
 # Fit an ellipse to a set of 2D data points with SVD
 #==================================================================
 
+@jit(nopython=True)
 def fit_ellipse_svd(x,y,fit=False,plot=False):
   """
   Fit an ellipse to a set of 2D data points with singular value 
@@ -165,10 +170,6 @@ def fit_ellipse_svd(x,y,fit=False,plot=False):
   Requires numpy 1.16.3 (conda install -c anaconda numpy; 
    https://pypi.org/project/numpy/)
   """
-
-  # Import libraries
-  import numpy as np
-  import geophys_functions as gfns
 
   # Get number of points
   N = len(x)
