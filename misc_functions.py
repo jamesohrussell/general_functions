@@ -29,11 +29,30 @@ from numba import jit
 import numpy as np
 import pandas as pd
 
+
 #==================================================================
 # Find indices of k closest values in list
 #==================================================================
 
-@jit(nopython=True)
+def divzero(n,d):
+  """
+  Division where divide by zero equals 0
+
+  Input: 
+   1) Numerator
+   2) Denominator
+
+  Output:
+   Division calculation or zero if d is zero
+  """
+
+  # Find the absolute differences between the value and all values
+  return(n/d if d else 0)
+
+#==================================================================
+# Find indices of k closest values in list
+#==================================================================
+
 def k_closest(lst,value,k):
   """
   Find the indices of the k closest values in list to a given value
@@ -71,7 +90,6 @@ def k_closest(lst,value,k):
 # Create 2D dataframe given a list of coordinates and data
 #==================================================================
 
-@jit(nopython=True)
 def create_2d_dataframe(x,y,dx,dy,data):
   """
   Creates a dataframe given a set of pixel locations, pixel sizes,

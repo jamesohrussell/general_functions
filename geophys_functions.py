@@ -64,9 +64,8 @@
 # Import libraries
 #==================================================================
 
-from numba import jit
 from area import area
-import numpy
+import numpy as np
 from geopy.distance import geodesic
 import datetime as dt
 import netCDF4 as nc
@@ -80,7 +79,6 @@ from shapely.prepared import prep
 # Calculate area 
 #==================================================================
 
-@jit(nopython=True)
 def calc_area(lons,lats,dx,dy):
   """
   Calculates the area on earth given a set of pixels.
@@ -126,7 +124,6 @@ def calc_area(lons,lats,dx,dy):
 # Calculate area and volumetric rain rate
 #==================================================================
 
-@jit(nopython=True)
 def calc_area_and_volrainrate(lons,lats,rain,dx,dy):
   """
   Calculates the area on earth and the volumetric rain 
@@ -181,7 +178,6 @@ def calc_area_and_volrainrate(lons,lats,rain,dx,dy):
 # Calculate distance between two points on earth
 #==================================================================
 
-@jit(nopython=True)
 def calc_distance(lon1,lat1,lon2,lat2):
   """
   Calculates distance on earth between two sets of 
@@ -209,7 +205,6 @@ def calc_distance(lon1,lat1,lon2,lat2):
 # Calculate direction on earth
 #==================================================================
 
-@jit(nopython=True)
 def calc_direction(lon1,lat1,lon2,lat2):
   """
   Calculates direction on earth between two sets of 
@@ -256,7 +251,6 @@ def calc_direction(lon1,lat1,lon2,lat2):
 # Calculate distance and angle of a vector on earth
 #==================================================================
 
-@jit(nopython=True)
 def calc_distdir(lon1,lat1,lon2,lat2):
   """
   Calculates distance on earth between two sets of latitude, 
@@ -289,7 +283,6 @@ def calc_distdir(lon1,lat1,lon2,lat2):
 # Calculate propagation
 #==================================================================
 
-@jit(nopython=True)
 def calc_propagation(date1,lon1,lat1,date2,lon2,lat2):
   """
   Calculates propagation speed and direction on earth 
@@ -329,7 +322,6 @@ def calc_propagation(date1,lon1,lat1,date2,lon2,lat2):
 # Function to load land shape file
 #==================================================================
 
-@jit(nopython=True)
 def load_land(res='50m'):
   """
   Load land shape file
@@ -364,7 +356,6 @@ def load_land(res='50m'):
 # Function to check if a point is over land
 #==================================================================
 
-@jit(nopython=True)
 def is_land(lon, lat, res='50m'):
   """
   Check if a location is over land. 
@@ -396,7 +387,6 @@ def is_land(lon, lat, res='50m'):
 # Interpolate TC information to a time
 #==================================================================
 
-@jit(nopython=True)
 def interp_TC(dtim,fTC):
   """
   Interpolates information on a TC to a given a time. 
@@ -422,9 +412,9 @@ def interp_TC(dtim,fTC):
   # Convert current time to TC time units
   #  *Hard coded for IBTrACS default unit of days
   timeunits = fTC.variables["time"].units
-  d1   = datetime.datetime.strptime(timeunits[11:21], 
+  d1   = dt.datetime.strptime(timeunits[11:21], 
                                     "%Y-%m-%d")
-  d2   = datetime.datetime.strptime(str(dtim),
+  d2   = dt.datetime.strptime(str(dtim),
                                     "%Y%m%d%H%M")
   d1ts = time.mktime(d1.timetuple())
   d2ts = time.mktime(d2.timetuple())
@@ -544,7 +534,6 @@ def interp_TC(dtim,fTC):
 # Calculate TC information
 #==================================================================
 
-@jit(nopython=True)
 def calc_if_TC(lon,lat,TCinfo,fTC):
   """
   Calculates proximity to TC. 

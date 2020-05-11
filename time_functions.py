@@ -26,18 +26,14 @@
 # Import libraries
 #==================================================================
 
-from numba import jit
 import datetime as dt
 from datetime import datetime
 from dateutil import tz
-
-
 
 #==================================================================
 # Calculate time since given units
 #==================================================================
 
-@jit(nopython==True)
 def time_since(dateandtime,reftimeandunits):
   """
   Calculate the date and time in units since a date
@@ -95,7 +91,6 @@ def time_since(dateandtime,reftimeandunits):
 # Calculate time since given units
 #==================================================================
 
-@jit(nopython==True)
 def time_since_inv(datenumber,reftimeandunits):
   """
   Convert a date number (e.g. time units since a date) to a date 
@@ -148,7 +143,6 @@ def time_since_inv(datenumber,reftimeandunits):
 # Calculate local time
 #==================================================================
 
-@jit(nopython==True)
 def utc_to_local(utcdatetime,timezone):
  
   """
@@ -188,7 +182,6 @@ def utc_to_local(utcdatetime,timezone):
 # Calculate local solar time based on longitude
 #==================================================================
 
-@jit(nopython==True)
 def calc_local_solar_time(yr,mo,dy,hr,mn,sc,lon):
   """
   Calculates the local solar time given a date and time and 

@@ -21,11 +21,14 @@
 #   - Uses singular value decomposition to define an ellipse given 
 #      a set of points in 2d
 #
+# * plot_pf_ellipse
+#   - Uses output from the above function to plot the PF and the 
+#      fitted ellipse
+#
 #==================================================================
 # Import libraries
 #==================================================================
 
-from numba import jit
 import scipy.ndimage as ndimg
 import numpy as np
 from matplotlib.path import Path
@@ -35,7 +38,6 @@ import geophys_functions as gfns
 # Identify contiguous areas in 2d field 
 #==================================================================
 
-@jit(nopython=True)
 def label_wdiags(array):
   """
   This is a small adjustment to the scipy.ndimage.label() function
@@ -69,7 +71,6 @@ def label_wdiags(array):
 # Find unique corner points from a list of pixel centers
 #==================================================================
 
-@jit(nopython=True)
 def find_corners(coords,dx,dy,dp=2):
   """
   Defines a list of coordinates for corners given a list of pixel
@@ -114,7 +115,6 @@ def find_corners(coords,dx,dy,dp=2):
 # Find which points are inside a shape
 #==================================================================
 
-@jit(nopython=True)
 def points_in_shape(verts,points,widen=0):
   """
   Finds and returns all grid points within a list of vertices 
@@ -153,7 +153,6 @@ def points_in_shape(verts,points,widen=0):
 # Fit an ellipse to a set of 2D data points with SVD
 #==================================================================
 
-@jit(nopython=True)
 def fit_ellipse_svd(x,y,fit=False,plot=False):
   """
   Fit an ellipse to a set of 2D data points with singular value 
@@ -259,6 +258,93 @@ def fit_ellipse_svd(x,y,fit=False,plot=False):
     # Return center, and direction and length of major and minor
     #  axes
     return(center,axdir,axdist)
+
+
+#==================================================================
+# Plot PF and ellipse
+#==================================================================
+
+def plot_pf_ellipse(x,y,z,center,axdir,axlen,fit):
+  """
+  
+
+  Input: 
+   1,2) 
+
+  Output:
+   1) 
+   2) 
+   3) 
+
+  Requires numpy 1.16.3 (conda install -c anaconda numpy; 
+   https://pypi.org/project/numpy/)
+  """
+
+  # Make plot with data
+  print("Plotting ellipse")
+  import matplotlib.pyplot as plt
+  import nclcmaps
+  cmap = nclcmaps.cmap('WhiteBlueGreenYellowRed')
+  cs = plt.pcolormesh(x, y, z,cmap=cmap,vmin=0,vmax=16)
+  cbar = plt.colorbar(cs, pad=.1, fraction=0.06)   
+  plt.gca().set_aspect('equal', adjustable='box')
+  plt.grid(True)
+
+  # Plot ellipse
+  plt.plot(fit[0, :], fit[1, :], 'r')
+
+  # Plot center
+  plt.plot(center[0],center[1],".r")
+
+  # Plot major axis
+  x1 = center[0]-((axlen[0]/2)*np.sin(np.deg2rad(axdir[0])))
+  x2 = center[0]+((axlen[0]/2)*np.sin(np.deg2rad(axdir[0])))
+  y1 = center[1]-((axlen[0]/2)*np.cos(np.deg2rad(axdir[0])))
+  y2 = center[1]+((axlen[0]/2)*np.cos(np.deg2rad(axdir[0])))
+  plt.plot([x1,x2],[y1,y2])
+
+  # Plot minor axis
+  x1 = center[0]-((axlen[1]/2)*np.sin(np.deg2rad(axdir[1])))
+  x2 = center[0]+((axlen[1]/2)*np.sin(np.deg2rad(axdir[1])))
+  y1 = center[1]-((axlen[1]/2)*np.cos(np.deg2rad(axdir[1])))
+  y2 = center[1]+((axlen[1]/2)*np.cos(np.deg2rad(axdir[1])))
+  plt.plot([x1,x2],[y1,y2])
+
+  # Show plot
+  plt.show()
+
+#==================================================================
+# Plot PF and ellipse
+#==================================================================
+
+def plot_pf(x,y,z):
+  """
+  
+
+  Input: 
+   1,2) 
+
+  Output:
+   1) 
+   2) 
+   3) 
+
+  Requires numpy 1.16.3 (conda install -c anaconda numpy; 
+   https://pypi.org/project/numpy/)
+  """
+
+  # Make plot with data
+  print("Plotting ellipse")
+  import matplotlib.pyplot as plt
+  import nclcmaps
+  cmap = nclcmaps.cmap('WhiteBlueGreenYellowRed')
+  cs = plt.pcolormesh(x, y, z,cmap=cmap,vmin=0,vmax=16)
+  cbar = plt.colorbar(cs, pad=.1, fraction=0.06)   
+  plt.gca().set_aspect('equal', adjustable='box')
+  plt.grid(True)
+
+  # Show plot
+  plt.show()
 
 
 
