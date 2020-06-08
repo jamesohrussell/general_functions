@@ -48,6 +48,8 @@
 #
 #==================================================================
 
+import numpy as np
+
 #==================================================================
 # Get subset of a variable from ERA5 files
 #==================================================================
@@ -700,8 +702,6 @@ def get_E5_ss_files(datadir,fileid,timestr1,timestr2):
   for fi in allfiles:
     fh = Dataset(fi)
 
-    print(fi)
-
     # Read the times
     times1 = list(fh.variables["time"][:])
     
@@ -709,7 +709,7 @@ def get_E5_ss_files(datadir,fileid,timestr1,timestr2):
     if times1[0]<=time1<=times1[-1] and \
        times1[0]<=time2<=times1[-1]:
 
-      print("First and last file")
+      #print("First and last file")
       ssfiles.append(fi)
 
       # Break the loop
@@ -719,7 +719,7 @@ def get_E5_ss_files(datadir,fileid,timestr1,timestr2):
     if times1[0]<=time1<=times1[-1] and not \
        times1[0]<=time2<=times1[-1]:
 
-      print("First file only")
+      #print("First file only")
       ssfiles.append(fi)
 
       # Move on to next file
@@ -729,7 +729,7 @@ def get_E5_ss_files(datadir,fileid,timestr1,timestr2):
     # If last time is within current file
     if times1[0]<=time2<=times1[-1]:
 
-      print("Last file")
+      #print("Last file")
     
       ssfiles.append(fi)
 
@@ -739,7 +739,7 @@ def get_E5_ss_files(datadir,fileid,timestr1,timestr2):
     # Middle times
     if append:
 
-      print("Middle file")
+      #print("Middle file")
       ssfiles.append(fi)
 
   # Return data
@@ -821,16 +821,23 @@ def get_E5_ss_coords(fh,clon,clat,hda):
   if clon<0: clon = clon+360
   lat = fh.variables["latitude"][:]
   lon = fh.variables["longitude"][:]
-  lati  = np.squeeze([mfns.k_closest(lat,clat+hda,1), 
-                      mfns.k_closest(lat,clat-hda,1)])
-  loni  = np.squeeze([mfns.k_closest(lon,clon-hda,1),
-                      mfns.k_closest(lon,clon+hda,1)])
-     
-  # Get coordinates of that subset
-  coords = np.meshgrid(
-   fh.variables["latitude"][lati[0]:lati[1]+1],
-   fh.variables["longitude"][loni[0]:loni[1]+1])
 
+  # Set lat and lon ranges
+  clatp = clat+hda
+  if clatp>90: clatp = 90
+  clatm = clat-hda
+  if clatm<-90: clatm = -90
+  clonp = clon+hda
+  if clonp>360: clonp = clonp-360
+  clonm = clon-hda
+  if clonm<0: clonm = clonm+360
+
+  # Find indices
+  lati  = np.squeeze([mfns.k_closest(lat,clatp,1), 
+                      mfns.k_closest(lat,clatm,1)])
+  loni  = np.squeeze([mfns.k_closest(lon,clonm,1),
+                      mfns.k_closest(lon,clonp,1)])
+  
   # Return data
   return(loni,lati)
 
@@ -906,22 +913,78 @@ def get_E5_ss_2D_fiti(allfiles,timestr):
   import time_functions as tfns
   import misc_functions as mfns
 
-  # Select which file the time is within
+  # Convert ctime to units in files
   ds0 = Dataset(allfiles[0])
   ctime = tfns.time_since(timestr,ds0.variables["time"].units)
+
+  # Select which file the time is within
+  it = 0
   for fi in allfiles:
+
+    # Open file
     fh = Dataset(fi)
-    if fh.variables["time"][0]<=ctime<=fh.variables["time"][-1]:
+
+    # At first file, check if time before first time
+    if (ctime<fh.variables["time"][0] and it==0):
+
+      # Throw error explaining
+      raise ValueError("Time is before range of times in files")
+
+    # At last file, check if time after last time
+    elif (ctime>fh.variables["time"][-1] and it==len(allfiles)-1):
+
+      # Throw error explaining
+      raise ValueError("Time is after range of times in files")
+
+    # Check if time is within current file
+    elif fh.variables["time"][0]<=ctime<=fh.variables["time"][-1]:
+
+      # Make list with the current file handle and break loop
+      files = [fh]
       break
 
-  # Select the index(es) of the relevant time(s) 
-  times = list(fh.variables["time"][:])
-  if ctime in times:
-    timi = times.index(ctime)
-  else:
-    timi = mfns.k_closest(times,ctime,2)
+    # Check if time is after last time in previous file but 
+    #  before first time in current file
+    elif ("ltinpf" in locals()) and \
+         (ltinpf<=ctime<=fh.variables["time"][0]):
 
-  return(fh,timi,times,ctime)
+      # Make list with previous and current file handle 
+      #  and break loop
+      files = [pf,fh]
+      break
+
+    # Set last time in current file for next iteration
+    else:
+      ltinpf = fh.variables["time"][-1]
+      pf = fh
+
+    # Update counter
+    it=it+1
+
+  # Select the index(es) of the relevant time(s)
+
+  # If in the middle of a single file
+  if len(files)==1:
+    times = list(files[0].variables["time"][:])
+
+    # If at exact time set time index and get time
+    if ctime in times:
+      timi = [times.index(ctime)]
+      times = times[timi[0]]
+    # If between two times, set index of and get two closest times
+    else:
+      timi = mfns.k_closest(times,ctime,2)
+      times = [times[timi[0]],times[timi[1]]]
+
+  # If between two files, set index of and get last time of 
+  #  first file and first time of last file
+  else:
+    times = [float(files[0].variables["time"][-1]),
+             float(files[1].variables["time"][0])]
+    timi = [len(list(files[0].variables["time"][:]))-1,0]
+
+  # Return file handle(s), time indice(s), times(s), and main time
+  return(files,timi,times,ctime)
 
 #==================================================================
 # Get subset of a variable from ERA5 files
@@ -950,18 +1013,38 @@ def get_E5_ss_2D_coords(fh,clon,clat,hda):
   import numpy as np
   import misc_functions as mfns
 
-  # Find lat and lon indices
+  # Get longitude and latitude coordinates
   if clon<0: clon = clon+360
   lat = fh.variables["latitude"][:]
   lon = fh.variables["longitude"][:]
-  lati  = np.squeeze([mfns.k_closest(lat,clat+hda,1), 
-                      mfns.k_closest(lat,clat-hda,1)])
-  loni  = np.squeeze([mfns.k_closest(lon,clon-hda,1),
-                      mfns.k_closest(lon,clon+hda,1)])
+
+  # Set lat and lon ranges
+  clatp = clat+hda
+  if clatp>90: clatp = 90
+  clatm = clat-hda
+  if clatm<-90: clatm = -90
+  clonp = clon+hda
+  if clonp>360: clonp = clonp-360
+  clonm = clon-hda
+  if clonm<0: clonm = clonm+360
+
+  # Deal with cyclical lons
+  if clonp>(lon[-1]+(lon[1]-lon[0])/2): clonp = clonp-360
+  if clonm>(lon[-1]+(lon[1]-lon[0])/2): clonm = clonm-360
+
+  # Find indices
+  lati  = np.squeeze([mfns.k_closest(lat,clatp,1), 
+                      mfns.k_closest(lat,clatm,1)])
+  loni  = np.squeeze([mfns.k_closest(lon,clonm,1),
+                      mfns.k_closest(lon,clonp,1)])
      
   # Get coordinates of that subset
   lats = fh.variables["latitude"][lati[0]:lati[1]+1]
-  lons = fh.variables["longitude"][loni[0]:loni[1]+1]
+  if loni[1]>loni[0]:
+    lons = fh.variables["longitude"][loni[0]:loni[1]+1]
+  if loni[0]>loni[1]:
+    lons = np.concatenate([fh.variables["longitude"][loni[0]:],
+                           fh.variables["longitude"][0:loni[1]+1]])
 
   # Return data
   return(loni,lati,lons,lats)
@@ -977,7 +1060,7 @@ def get_E5_ss_2D_var(fh,varname,timi,loni,lati,times,ctime):
   Get a 2D subset of ERA5 data.
 
   Input: 
-   1) A file handle for the file
+   1) File handle(s) for the files
    2) A string of the variable name in ERA5 e.g."CAPE"
    3) The indices corresponding to time
    4,5) The indices corresponding to longitude and latitude ranges
@@ -993,18 +1076,67 @@ def get_E5_ss_2D_var(fh,varname,timi,loni,lati,times,ctime):
   """
 
   # Import libraries
-  import numpy as np
   from scipy.interpolate import interp1d
 
   # Read in subset of data (interpolate in time if necessary)
-  if hasattr(timi,"__len__"):
-    varall = np.array(fh.variables[varname][timi[0]:timi[1]+1,
-              lati[0]:lati[1]+1,loni[0]:loni[1]+1])
-    varss  = interp1d([times[timi[0]],times[timi[1]]],
-              varall,axis=0)(ctime)
+
+  # Instance where at exact time
+  if (len(fh)==1) and (len(timi)==1):
+
+    # Not looped over longitude end
+    if loni[1]>loni[0]:
+      varss = np.array(fh[0].variables[varname][timi,
+                lati[0]:lati[1]+1,loni[0]:loni[1]+1])
+    # Looped over longitude end
+    if loni[0]>loni[1]:
+      varss = np.concatenate(
+       [np.array(fh[0].variables[varname][timi,
+         lati[0]:lati[1]+1,loni[0]:]),
+        np.array(fh[0].variables[varname][timi,
+         lati[0]:lati[1]+1,0:loni[1]+1])],axis=1) 
+
+  # Instance where between times in 1 file, interpolation required
+  elif len(fh)==1 and len(timi)==2:
+
+    if loni[1]>loni[0]:
+      varall = np.array(fh[0].variables[varname][timi[0]:timi[1]+1,
+                lati[0]:lati[1]+1,loni[0]:loni[1]+1])
+    elif loni[0]>loni[1]:
+      varall = np.concatenate(
+       [np.array(fh[0].variables[varname][timi[0]:timi[1]+1,
+         lati[0]:lati[1]+1,loni[0]:]),
+        np.array(fh[0].variables[varname][timi[0]:timi[1]+1,
+         lati[0]:lati[1]+1,0:loni[1]+1])],axis=2)
+
+    varss  = interp1d(times,varall,axis=0)(ctime)
+
+  # Instance where between two files
+  elif len(fh)==2 and len(timi)==2:
+  
+    if loni[1]>loni[0]:
+      varall = np.concatenate(
+       [np.array(fh[0].variables[varname][timi[0],
+         lati[0]:lati[1]+1,loni[0]:loni[1]+1])[None,:,:],
+        np.array(fh[1].variables[varname][timi[1],
+         lati[0]:lati[1]+1,loni[0]:loni[1]+1])[None,:,:]],axis=0)
+    elif loni[0]>loni[1]:
+      varall = np.concatenate(
+       [np.concatenate(
+        [np.array(fh.variables[varname][timi[0],
+         lati[0]:lati[1]+1,loni[0]:]),
+         np.array(fh.variables[varname][timi[0],
+         lati[0]:lati[1]+1,0:loni[1]+1])],axis=2)[None,:,:],
+        np.concatenate(
+         [np.array(fh.variables[varname][timi[1],
+         lati[0]:lati[1]+1,loni[0]:]),
+         np.array(fh.variables[varname][timi[0],
+         lati[0]:lati[1]+1,0:loni[1]+1])],axis=2)[None,:,:]],axis=0)
+
+    varss  = interp1d(times,varall,axis=0)(ctime)
+
+  # Any other instances throw an error
   else:
-    varss  = np.array(fh.variables[varname][timi,
-              lati[0]:lati[1]+1,loni[0]:loni[1]+1])
+    raise ValueError("Something went wrong in selecting times")
 
   # Return data
   return(varss)

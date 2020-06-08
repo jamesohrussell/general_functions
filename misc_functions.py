@@ -29,6 +29,88 @@ from numba import jit
 import numpy as np
 import pandas as pd
 
+#==================================================================
+# Find indices of k closest values in list
+#==================================================================
+
+def cartesian_distance(x1,x2,y1,y2):
+  """
+  Propagation 
+
+  Input: 
+   1) x locations
+   2) y locations
+   3) time 1 and 2
+
+  Output:
+   
+  """
+
+  # Calculate speed
+  return(np.sqrt((x2-x1)**2+(y2-y1)**2))
+
+
+
+#==================================================================
+# Find indices of k closest values in list
+#==================================================================
+
+def cartesian_speed(x1,x2,y1,y2,t1,t2):
+  """
+  Propagation 
+
+  Input: 
+   1) x locations
+   2) y locations
+   3) time 1 and 2
+
+  Output:
+   
+  """
+
+  # Calculate speed
+  return(cartesian_distance(x1,x2,y1,y2)/(t2-t1))
+
+
+
+#==================================================================
+# Calculate direction
+#==================================================================
+
+def cartesian_direction(x1,y1,x2,y2):
+  """
+  Calculates direction on earth between two sets of y, x 
+   coordinates.
+
+  Inputs:
+  1,2) x1, y1
+  3,4) x2, y2
+
+  Output is the direction in degrees from north.
+
+  Requires geopy 1.20.0 (conda install -c conda-forge geopy; 
+   https://pypi.org/project/geopy/) and numpy.
+  """
+
+  # Case where both locations are the same
+  if abs(y1-y2)<0.0001 and abs(x1-x2)<0.0001:
+    direction = float('NaN')
+  # Case where vector is directly east or west
+  elif abs(y1-y2)<0.0001:
+    if x1<x2: direction=90
+    if x1>x2: direction=270
+  # Case where vector is directly north or south
+  elif abs(x1-x2)<0.0001:
+    if y1<y2: direction=0
+    if y1>y2: direction=180
+  # All other cases
+  else: direction = np.rad2deg(np.arctan((x1-x2)/(y1-y2)))
+  if direction<0: direction = direction + 360
+
+  # Return direction
+  return(direction)
+
+
 
 #==================================================================
 # Find indices of k closest values in list
@@ -48,6 +130,8 @@ def divzero(n,d):
 
   # Find the absolute differences between the value and all values
   return(n/d if d else 0)
+
+
 
 #==================================================================
 # Find indices of k closest values in list
@@ -81,6 +165,44 @@ def k_closest(lst,value,k):
   for d in diffs[0:k]:
     diff = np.where(diff==d,0,diff)
 
+  # Return indices where diff equals zero
+  return([i for i, x in enumerate(diff) if x==0])
+
+
+#==================================================================
+# Find indices of k closest values in list
+#==================================================================
+
+def k_closest_ma(lst,value,k):
+  """
+  Find the indices of the k closest values in list to a given value
+
+  Input: 
+   1) A masked list of values
+   2) The value you wish to find the closest value to in lst
+   3) The number of closest values you wish to find.
+
+  Output:
+   A list of the indices in lst corresponding to the k closest
+    values to value
+
+  Requires numpy 1.16.3 (conda install -c anaconda numpy; 
+   https://pypi.org/project/numpy/)
+  """
+
+  # Find the absolute differences between the value and all values
+  #  in the list
+  valuea = np.array([value]*len(lst))
+  diff = np.absolute(np.subtract(lst,valuea))
+
+  # Sort these differences
+  diffs = sorted(diff.filled(np.nan))
+  diffs = [x for x in diffs if np.isnan(x)==False]
+
+  # Set the k smallest values in diff equal to zero
+  for d in diffs[0:k]:
+    diff = np.ma.where(diff==d,0,diff)
+ 
   # Return indices where diff equals zero
   return([i for i, x in enumerate(diff) if x==0])
 

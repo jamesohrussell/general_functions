@@ -124,15 +124,14 @@ def time_since_inv(datenumber,reftimeandunits):
                         int(splitrtu[3][6:8]))
 
   # Get date number in seconds
-  if unit=="minutes" or unit=="mins":
-    datenumber = datenumber*60
-  elif unit=="hours" or unit=="hrs":
-    datenumber = datenumber*3600
-  elif unit=="days" or unit=="dys":
-    datenumber = datenumber*86400
-  elif unit=="weeks" or unit=="wks":
-    datenumber = datenumber*604800
-
+  if unit.lower()=="minutes" or unit=="mins":
+    datenumber = float(datenumber)*60
+  elif unit.lower()=="hours" or unit=="hrs":
+    datenumber = float(datenumber)*3600
+  elif unit.lower()=="days" or unit=="dys":
+    datenumber = float(datenumber)*86400
+  elif unit.lower()=="weeks" or unit=="wks":
+    datenumber = float(datenumber)*604800
 
   # Using timedelta return a string of the current 
   return(str(refdtob+dt.timedelta(seconds=datenumber)))
