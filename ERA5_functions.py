@@ -1085,15 +1085,15 @@ def get_E5_ss_2D_var(fh,varname,timi,loni,lati,times,ctime):
 
     # Not looped over longitude end
     if loni[1]>loni[0]:
-      varss = np.array(fh[0].variables[varname][timi,
-                lati[0]:lati[1]+1,loni[0]:loni[1]+1])
+      varss = np.squeeze(np.array(fh[0].variables[varname][timi,
+                lati[0]:lati[1]+1,loni[0]:loni[1]+1]))
     # Looped over longitude end
     if loni[0]>loni[1]:
       varss = np.concatenate(
        [np.array(fh[0].variables[varname][timi,
-         lati[0]:lati[1]+1,loni[0]:]),
+         lati[0]:lati[1]+1,loni[0]:])[0,:,:],
         np.array(fh[0].variables[varname][timi,
-         lati[0]:lati[1]+1,0:loni[1]+1])],axis=1) 
+         lati[0]:lati[1]+1,0:loni[1]+1])[0,:,:]],axis=1)
 
   # Instance where between times in 1 file, interpolation required
   elif len(fh)==1 and len(timi)==2:
