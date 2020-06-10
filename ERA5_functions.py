@@ -696,51 +696,89 @@ def get_E5_ss_files(datadir,fileid,timestr1,timestr2):
   time2 = tfns.time_since(timestr2+":00:00",
                          ds0.variables["time"].units)
 
-  # Loop over all files and initialize variables
+  # Initialize variables
   append = False
   ssfiles = []
-  for fi in allfiles:
-    fh = Dataset(fi)
 
-    # Read the times
+  # Loop over all files
+  ifi=0
+  for fi in allfiles:
+
+    # Open current file and read times in files
+    fh = Dataset(fi)
     times1 = list(fh.variables["time"][:])
+
+    # If missing data
+    if ifi==0 and times1[0]>time1:
+      ssfiles.append(fi)
+      raise ValueError("Data is unavailable")
     
-    # If first and second time is within current file
+    # If first and second time within current file
     if times1[0]<=time1<=times1[-1] and \
        times1[0]<=time2<=times1[-1]:
-
-      #print("First and last file")
       ssfiles.append(fi)
-
-      # Break the loop
       break
 
     # If first time only is within current file
     if times1[0]<=time1<=times1[-1] and not \
        times1[0]<=time2<=times1[-1]:
-
-      #print("First file only")
       ssfiles.append(fi)
+
+      # Set current as previous file
+      pfh = fh
+      pfi = fi
+      ptimes1 = times1
+      ifi=ifi+1
 
       # Move on to next file
       append=True
       continue
 
+    # If first and second time between current and past files
+    if ifi>0 and \
+      (ptimes1[-1]<time1<times1[0] and \
+       ptimes1[-1]<time2<times1[0]):
+      ssfiles.append(pfi)
+      ssfiles.append(fi)
+      break
+
+    # If first time between current and past files 
+    # and second is not
+    if ifi>0 and \
+      (ptimes1[-1]<time1<times1[0] and not\
+       ptimes1[-1]<time2<times1[0]):
+      ssfiles.append(pfi)
+
+      # Set current as previous file
+      pfh = fh
+      pfi = fi
+      ptimes1 = times1
+      ifi=ifi+1
+
+      # Move on to next file
+      append=True
+
+    # If last time between current and past files
+    if ifi>0 and ptimes1[-1]<time2<times1[0]:
+      ssfiles.append(fi)
+      break
+
     # If last time is within current file
     if times1[0]<=time2<=times1[-1]:
-
-      #print("Last file")
-    
       ssfiles.append(fi)
-
-      # Break the loop
       break
 
     # Middle times
     if append:
 
-      #print("Middle file")
+      print("Middle file")
       ssfiles.append(fi)
+
+    # Set current as previous file
+    pfh = fh
+    pfi = fi
+    ptimes1 = times1
+    ifi=ifi+1
 
   # Return data
   return(ssfiles)
@@ -1121,16 +1159,17 @@ def get_E5_ss_2D_var(fh,varname,timi,loni,lati,times,ctime):
          lati[0]:lati[1]+1,loni[0]:loni[1]+1])[None,:,:]],axis=0)
     elif loni[0]>loni[1]:
       varall = np.concatenate(
-       [np.concatenate(
-        [np.array(fh.variables[varname][timi[0],
-         lati[0]:lati[1]+1,loni[0]:]),
-         np.array(fh.variables[varname][timi[0],
-         lati[0]:lati[1]+1,0:loni[1]+1])],axis=2)[None,:,:],
-        np.concatenate(
-         [np.array(fh.variables[varname][timi[1],
-         lati[0]:lati[1]+1,loni[0]:]),
-         np.array(fh.variables[varname][timi[0],
-         lati[0]:lati[1]+1,0:loni[1]+1])],axis=2)[None,:,:]],axis=0)
+       [np.concatenate([
+        fh[0].variables[varname][timi[0],
+         lati[0]:lati[1]+1,loni[0]:][None,:,:],
+        fh[0].variables[varname][timi[0],
+         lati[0]:lati[1]+1,0:loni[1]+1][None,:,:]],axis=2),
+        np.concatenate([
+        fh[1].variables[varname][timi[1],
+         lati[0]:lati[1]+1,loni[0]:][None,:,:],
+        fh[1].variables[varname][timi[1],
+         lati[0]:lati[1]+1,0:loni[1]+1][None,:,:]],axis=2)]
+        ,axis=0)
 
     varss  = interp1d(times,varall,axis=0)(ctime)
 
