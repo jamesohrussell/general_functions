@@ -57,8 +57,12 @@ def label_wdiags(array):
    https://pypi.org/project/scipy/)
   """
 
-  # Setup a 2x2 binary array to account for diagonals
-  s = ndimg.generate_binary_structure(2,2)
+  # Check array
+  ndims = len(np.shape(array))
+
+  # Setup a binary array to account for diagonals given 
+  #  dimensions of array
+  s = np.ones([3]*ndims)
 
   # Run scipy.ndimage.label() with binary structure
   labels, numL = ndimg.label(array, structure=s)

@@ -128,7 +128,6 @@ def divzero(n,d):
    Division calculation or zero if d is zero
   """
 
-  # Find the absolute differences between the value and all values
   return(n/d if d else 0)
 
 
