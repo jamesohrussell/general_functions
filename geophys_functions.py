@@ -59,6 +59,9 @@
 #      location and calculates whether a TC is close to 
 #      that location. Outputs information on the TC that is 
 #      closest if it is within largest possible TC radius.
+# 
+# * lonFlip
+#   - Flip dataset about a chosen longitude
 #
 #==================================================================
 # Import libraries
@@ -74,6 +77,7 @@ import fiona
 import cartopy.io.shapereader as shpreader
 import shapely.geometry as sgeom
 from shapely.prepared import prep
+import misc_functions as mfns
 
 #==================================================================
 # Calculate area 
@@ -577,4 +581,76 @@ def calc_if_TC(lon,lat,TCinfo,fTC):
   return(dist_cTC,in_TC,TCname,TCradius)
 
 
+#==================================================================
+# Calculate TC information
+#==================================================================
 
+def lonFlip(lons,dstoflip):
+  """
+  Calculates proximity to TC. 
+
+  Inputs:
+   1) list of longitudes -180->180 or 0->360
+   2) A dataset with lon the last dimension
+
+  Outputs a new lon array and dataset flipped such that new_slon
+   is the first value
+  """
+
+  # Is -180->180 or 0->360?
+  possmax = [180,360]
+  val = mfns.k_closest(possmax,np.amax(lons),1)[0]
+
+  # If currently -180->180 flip to 0->360
+  if val==0:
+
+    # Find closest index to new start
+    ind = mfns.k_closest(lons,0,1)
+
+    # Split lons into two arrays
+    lon1 = lons[:ind[0]] #-180->0
+    lon2 = lons[ind[0]:] #0->180
+
+    # Correct values from -180->0 to be
+    #  180->360
+    lon1 = np.where(lon1<0,lon1+360,lon1) # 180->360
+
+    # Make new lon array
+    lonnew = np.append(lon2,lon1) # 0->180 + 180->360
+
+    # Split lons into two arrays
+    dsshape = dstoflip.shape
+    dsflat  = dstoflip.reshape(-1,dsshape[-1])
+    ds1 = dsflat[:,:ind[0]] # -180->0
+    ds2 = dsflat[:,ind[0]:] # 0->180
+    dsnew = np.append(ds2,ds1,axis=-1).reshape(dsshape) # 0->180 + 180->360
+
+  # If currently 0->360 flip to -180->180
+  else:
+
+    # Find closest index to new start
+    ind = mfns.k_closest(lons,180,1)
+
+    # Split lons into two arrays
+    lon1 = lons[:ind[0]] # 0->180
+    lon2 = lons[ind[0]:] # 180->360
+
+    # Correct values from 180->360 to be -180->0
+    lon2 = np.where(lon2<0,lon2-360,lon2) # -180->0
+
+    # Make new lon array
+    lonnew = np.append(lon2,lon1) # -180->0 + 0->180
+
+    # Split lons into two arrays
+    dsshape = dstoflip.shape
+    dsflat  = dstoflip.reshape(-1,dsshape[-1])
+    ds1 = dsflat[:,:ind[0]] # 0->180
+    ds2 = dsflat[:,ind[0]:] # 180->360
+    dsnew = np.append(ds2,ds1,axis=-1).reshape(dsshape) # 180->360 + 0->180
+
+  # Return new lon and dataset
+  return(lonnew,dsnew)
+
+#==================================================================
+# End
+#==================================================================

@@ -25,7 +25,6 @@
 # Import libraries
 #==================================================================
 
-from numba import jit
 import numpy as np
 import pandas as pd
 
@@ -113,7 +112,7 @@ def cartesian_direction(x1,y1,x2,y2):
 
 
 #==================================================================
-# Find indices of k closest values in list
+# Divide by zero
 #==================================================================
 
 def divzero(n,d):
