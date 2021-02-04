@@ -48,7 +48,13 @@
 #
 #==================================================================
 
+# Import libraries
 import numpy as np
+import glob
+from netCDF4 import Dataset
+import time_functions as tfns
+import misc_functions as mfns
+from scipy.interpolate import interp1d
 
 #==================================================================
 # Get subset of a variable from ERA5 files
@@ -73,9 +79,6 @@ def get_E5_ss_4D(datadir,fileid,varname,timestr1,timestr2,
 
   Requires 
   """
-
-  # Import libraries
-  from netCDF4 import Dataset
 
   # Get files, times, and time indices for first and last file
   files,timi,times = get_E5_ss_4D_fiti(datadir,fileid,
@@ -119,13 +122,6 @@ def get_E5_ss_4D_fiti(datadir,fileid,timestr1,timestr2):
 
   Requires glob and netCDF4
   """
-
-  # Import libraries
-  import glob
-  from netCDF4 import Dataset
-  import time_functions as tfns
-  import misc_functions as mfns
-  import numpy as np
 
   # Find all files 
   allfiles = sorted(glob.glob(datadir+fileid+"*"))
@@ -231,10 +227,6 @@ def get_E5_ss_4D_coords(fh,lat1,lat2,lon1,lon2):
    https://pypi.org/project/numpy/)
   """
 
-  # Import libraries
-  import numpy as np
-  import misc_functions as mfns
-
   # Find lat and lon indices
   if lon1<0: lon1 = lon1+360
   if lon2<0: lon2 = lon2+360
@@ -289,10 +281,6 @@ def get_E5_ss_4D_levels(fh,lev1,lev2):
    https://pypi.org/project/numpy/)
   """
 
-  # Import libraries
-  import numpy as np
-  import misc_functions as mfns
-
   # Find lat and lon indices
   lev  = fh.variables["level"][:]
   levi = np.squeeze([mfns.k_closest(lev,lev1,1), 
@@ -328,10 +316,6 @@ def get_E5_ss_4D_2levels(fh,lev1,lev2):
    https://pypi.org/project/numpy/)
   """
 
-  # Import libraries
-  import numpy as np
-  import misc_functions as mfns
-
   # Find lat and lon indices
   lev  = fh.variables["level"][:]
   levi = np.squeeze([mfns.k_closest(lev,lev1,1),
@@ -364,10 +348,6 @@ def get_E5_ss_4D_var(files,varname,timi,levi,lati,loni):
   Requires numpy 1.16.3 (conda install -c anaconda numpy; 
    https://pypi.org/project/numpy/)
   """
-
-  # Import libraries
-  import numpy as np
-  from netCDF4 import Dataset
 
   # Loop over all files and open the current file
   c = 0
@@ -461,10 +441,6 @@ def get_E5_ss_4D_levavgvar(files,varname,timi,levi,lati,loni):
   Requires numpy 1.16.3 (conda install -c anaconda numpy; 
    https://pypi.org/project/numpy/)
   """
-
-  # Import libraries
-  import numpy as np
-  from netCDF4 import Dataset
 
   # Loop over all files and open the current file
   c = 0
@@ -564,10 +540,6 @@ def get_E5_ss_4D_levdiffvar(files,varname,timi,levi,lati,loni):
    https://pypi.org/project/numpy/)
   """
 
-  # Import libraries
-  import numpy as np
-  from netCDF4 import Dataset
-
   # Loop over all files and open the current file
   c = 0
   for fi in files:
@@ -660,7 +632,7 @@ def get_E5_ss_4D_levdiffvar(files,varname,timi,levi,lati,loni):
 # Get subset of a variable from ERA5 files
 #==================================================================
 
-def get_E5_ss_files(datadir,fileid,timestr1,timestr2):
+def get_E5_ss_files(dirfileid,timestr1,timestr2):
   """
   Find all files with data between two times and output the 
    indices of the times within the first and last files
@@ -679,15 +651,8 @@ def get_E5_ss_files(datadir,fileid,timestr1,timestr2):
   Requires glob and netCDF4
   """
 
-  # Import libraries
-  import glob
-  from netCDF4 import Dataset
-  import time_functions as tfns
-  import misc_functions as mfns
-  import numpy as np
-
   # Find all files 
-  allfiles = sorted(glob.glob(datadir+fileid+"*"))
+  allfiles = sorted(glob.glob(f'{dirfileid}*'))
 
   # Convert first and last time to same units
   ds0 = Dataset(allfiles[0])
@@ -805,12 +770,6 @@ def get_E5_ss_fiti(allfiles,timestr):
   Requires 
   """
 
-  # Import libraries
-  import glob
-  from netCDF4 import Dataset
-  import time_functions as tfns
-  import misc_functions as mfns
-
   # Select which file the time is within
   ds0 = Dataset(allfiles[0])
   ctime = tfns.time_since(timestr,ds0.variables["time"].units)
@@ -850,10 +809,6 @@ def get_E5_ss_coords(fh,clon,clat,hda):
   Requires numpy 1.16.3 (conda install -c anaconda numpy; 
    https://pypi.org/project/numpy/)
   """
-
-  # Import libraries
-  import numpy as np
-  import misc_functions as mfns
 
   # Find lat and lon indices
   if clon<0: clon = clon+360
@@ -944,12 +899,6 @@ def get_E5_ss_2D_fiti(allfiles,timestr):
 
   Requires 
   """
-
-  # Import libraries
-  import glob
-  from netCDF4 import Dataset
-  import time_functions as tfns
-  import misc_functions as mfns
 
   # Convert ctime to units in files
   ds0 = Dataset(allfiles[0])
@@ -1047,10 +996,6 @@ def get_E5_ss_2D_coords(fh,clon,clat,hda):
    https://pypi.org/project/numpy/)
   """
 
-  # Import libraries
-  import numpy as np
-  import misc_functions as mfns
-
   # Get longitude and latitude coordinates
   if clon<0: clon = clon+360
   lat = fh.variables["latitude"][:]
@@ -1112,9 +1057,6 @@ def get_E5_ss_2D_var(fh,varname,timi,loni,lati,times,ctime):
    https://pypi.org/project/numpy/), scipy 1.2.1 (conda install 
    -c anaconda scipy; https://pypi.org/project/scipy/)
   """
-
-  # Import libraries
-  from scipy.interpolate import interp1d
 
   # Read in subset of data (interpolate in time if necessary)
 

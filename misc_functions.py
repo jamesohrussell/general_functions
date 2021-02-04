@@ -249,7 +249,7 @@ def create_2d_dataframe(x,y,dx,dy,data):
 #==================================================================
 
 def write_var(varname,long_name,description,dimname,dtype,units,
-              fileout,datain,f,fv):
+              fileout,datain):
   """
   Generic script for defining/opening a variable in a 
    netcdf file and then writing the associated data to the 
@@ -257,8 +257,7 @@ def write_var(varname,long_name,description,dimname,dtype,units,
   """
 
   try:
-    datafile = fileout.createVariable(varname, dtype, (dimname),
-     fill_value=fv)
+    datafile = fileout.createVariable(varname, dtype, (dimname))
   except:
     #print(varname + " already defined")
     datafile = fileout.variables[varname]
@@ -268,7 +267,45 @@ def write_var(varname,long_name,description,dimname,dtype,units,
   datafile.units = units
   datafile[:] = datain
 
+#==================================================================
+# Write netcdf variable
+#==================================================================
 
+def write_var_compress(varname,long_name,description,dimname,
+  dtype,units,fileout,datain,fv=-999,
+  zlib=True,cl=1,lsd=None):
+  """
+  Generic script for defining/opening a variable in a 
+   netcdf file and then writing the associated data to the 
+   variable.
+  
+  Inputs:
+   1) Variable name in netcdf file
+   2) Variable attribute long_name 
+   3) Variable attribute description
+   4) Dimension names:
+       If 1D can be string
+       If multidimensional - tuple of strings
+   5) Data type e.g. np.float64
+   6) String indicating units
+   7) Handle of file to write to (need to have pre-opened the file)
+   8) Variable name of data to write
+   9) Fill value. Default is -999
+   10) Indicate zlib compression
+   11) Compression level 
+        1 = quick/low-compression
+        10= slow/high-compression)
+   12) least_significant_digit (rounding)
+  """
+
+  datafile = fileout.createVariable(varname,dtype,(dimname),
+   fill_value=fv,zlib=True,complevel=1,
+   least_significant_digit=lsd)
+
+  datafile.long_name   = long_name
+  datafile.description = description
+  datafile.units = units
+  datafile[:] = datain
 
 #==================================================================
 # Write netcdf groups as attribute and value pairs 

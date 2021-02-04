@@ -158,13 +158,14 @@ def points_in_shape(verts,points,widen=0):
 # Fit an ellipse to a set of 2D data points with SVD
 #==================================================================
 
-def fit_ellipse_svd(x,y,fit=False,plot=False):
+def fit_ellipse_svd_earth(x,y,center,fit=False,plot=False):
   """
   Fit an ellipse to a set of 2D data points with singular value 
    decomposition (SVD)
 
   Input: 
    1,2) Lists of x and y coordinates to fit the ellipse to
+   3) Center lon and lat as pair in tuple
 
   Output:
    1) A list with x and y location of ellipse center
@@ -178,12 +179,8 @@ def fit_ellipse_svd(x,y,fit=False,plot=False):
   # Get number of points
   N = len(x)
 
-  # Calculate center of mass of shape
-  center = [np.mean(x),np.mean(y)]
-
   # Get distance to center for all points
-  xc = x - center[0]
-  yc = y - center[1]
+  #geodesic((,),(,)).m
 
   # Do singular value decomposition
   U, S = np.linalg.svd(np.stack((xc, yc)))[0:2]
@@ -191,10 +188,15 @@ def fit_ellipse_svd(x,y,fit=False,plot=False):
   # Calculate angle of axes
   axdir = [gfns.calc_direction(center[0],center[1],
            center[0]+a[0],center[1]+a[1]) for a in U]
+  print(axdir)
   axdir = [d-180 if d>180 else d for d in axdir]
+
+  print(axdir)
 
   # Calculate length in degrees of axes
   axlen = [2*np.sqrt(2/N)*l for l in S]
+
+  print(axlen)
 
   # Calculate geopgraphic distance of axes
   axdist =  [gfns.calc_distance(center[0] - ((axlen[i]/2)* \
@@ -269,7 +271,7 @@ def fit_ellipse_svd(x,y,fit=False,plot=False):
 # Fit an ellipse to a set of 2D data points with SVD
 #==================================================================
 
-def fit_ellipse_svd_cart(x,y,fit=False,plot=False):
+def fit_ellipse_svd_cart(x,y,center,fit=False,plot=False):
   """
   Fit an ellipse to a set of 2D data points with singular value 
    decomposition (SVD)
@@ -288,9 +290,6 @@ def fit_ellipse_svd_cart(x,y,fit=False,plot=False):
 
   # Get number of points
   N = len(x)
-
-  # Calculate center of mass of shape
-  center = [np.mean(x),np.mean(y)]
 
   # Get distance to center for all points
   xc = x - center[0]
@@ -381,6 +380,7 @@ def fit_ellipse_svd_cart(x,y,fit=False,plot=False):
     # Return center, and direction and length of major and minor
     #  axes
     return(center,axdir,axdist)
+
 
 
 #==================================================================

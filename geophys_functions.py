@@ -238,8 +238,8 @@ def calc_direction(lon1,lat1,lon2,lat2):
   # All other cases
   else:
     direction = np.rad2deg(np.arctan(
-     calc_distance(lon1,lat2,lon2,lat2)/
-     calc_distance(lon1,lat1,lon1,lat2)))
+     geodesic((lat2,lon1),(lat2,lon2)).m/
+     geodesic((lat1,lon1),(lat2,lon1)).m))
 
   # Adjust for quadrant
   if lat1>lat2 and lon1<lon2: direction = 180-direction
@@ -273,7 +273,7 @@ def calc_distdir(lon1,lat1,lon2,lat2):
   """
 
   # Calculate distance on earth
-  distance = calc_distance(lon1,lat1,lon2,lat2)
+  distance = geodesic((lat1,lon1),(lat2,lon2)).m
 
   # calculate direction on earth
   direction = calc_direction(lon1,lat1,lon2,lat2)
@@ -561,6 +561,7 @@ def calc_if_TC(lon,lat,TCinfo,fTC):
 
   # Identify closest TC
   dist_loc_cTC = [0.]*len(TCinfo["TClat"])
+
   for i in range(len(TCinfo["TClat"])):
     # Check if location is within distance to TC center
     dist_loc_cTC[i] = geodesic((lat,lon),(TCinfo["TClat"][i],
