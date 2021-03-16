@@ -2,8 +2,7 @@
 # Shape functions
 #==================================================================
 #
-# Functions to calculate various shape parameters
-# James Russell 2020
+# James Russell, University of Utah, 2021
 #
 # * label_wdiags
 #   - Replicates the scipy.ndimage.label() function but 
@@ -17,13 +16,18 @@
 #   - Finds all x,y coordinates within a shape as defined by its
 #      vertices
 #
-# * fit_ellipse_svd
+# * fit_ellipse_svd_earth
 #   - Uses singular value decomposition to define an ellipse given 
 #      a set of points in 2d
 #
-# * plot_pf_ellipse
-#   - Uses output from the above function to plot the PF and the 
-#      fitted ellipse
+# * periodic_cmass_earth
+#   - Calculates a center of mass for a set of points on earth 
+#      with the zonal direction periodic
+#
+# * convert_cendirlen_latlon_earth
+#   - Takes a central point, direction/bearing, and length in km,
+#      and converts it to a line with lat,lon coordinates for the 
+#      two ends of the line
 #
 #==================================================================
 # Import libraries
@@ -34,6 +38,9 @@ import numpy as np
 from matplotlib.path import Path
 import geophys_functions as gfns
 import misc_functions as mfns
+from geopy.distance import geodesic
+import matplotlib.pyplot as plt
+import cmaps
 
 #==================================================================
 # Identify contiguous areas in 2d field 
@@ -166,6 +173,8 @@ def fit_ellipse_svd_earth(x,y,center,fit=False,plot=False):
   Input: 
    1,2) Lists of x and y coordinates to fit the ellipse to
    3) Center lon and lat as pair in tuple
+   4) Output the 1000 point ellipse fit
+   5) Make a figure
 
   Output:
    1) A list with x and y location of ellipse center
@@ -179,51 +188,45 @@ def fit_ellipse_svd_earth(x,y,center,fit=False,plot=False):
   # Get number of points
   N = len(x)
 
-  # Get distance to center for all points
-  #geodesic((,),(,)).m
+  # Get distance to center for all points in cartesian space
+  xc = [geodesic((center[1],ln),(center[1],center[0])).m if ln>center[0] else
+       -geodesic((center[1],ln),(center[1],center[0])).m if ln<center[0] else
+       0. for ln in x]
+  yc = [geodesic((lt,center[0]),(center[1],center[0])).m if lt>center[1] else
+       -geodesic((lt,center[0]),(center[1],center[0])).m if lt<center[1] else
+       0. for lt in y]
 
   # Do singular value decomposition
-  U, S = np.linalg.svd(np.stack((xc, yc)))[0:2]
-
-  # Calculate angle of axes
-  axdir = [gfns.calc_direction(center[0],center[1],
-           center[0]+a[0],center[1]+a[1]) for a in U]
-  print(axdir)
-  axdir = [d-180 if d>180 else d for d in axdir]
-
-  print(axdir)
+  U,S = np.linalg.svd(np.stack((xc, yc)))[0:2]
 
   # Calculate length in degrees of axes
   axlen = [2*np.sqrt(2/N)*l for l in S]
 
-  print(axlen)
-
-  # Calculate geopgraphic distance of axes
-  axdist =  [gfns.calc_distance(center[0] - ((axlen[i]/2)* \
-                       np.sin(np.deg2rad(axdir[i]))), \
-                       center[1] - ((axlen[i]/2)* \
-                       np.cos(np.deg2rad(axdir[i]))), \
-                       center[0] + ((axlen[i]/2)* \
-                       np.sin(np.deg2rad(axdir[i]))), \
-                       center[1] + ((axlen[i]/2)* \
-                       np.cos(np.deg2rad(axdir[i])))) \
-             for i in range(len(axlen))]
+  # Calculate angle of axes
+  tt = np.linspace(0, 2*np.pi, 5)
+  circle = np.stack((np.cos(tt), np.sin(tt)))
+  transform = np.sqrt(2/N) * U.dot(np.diag(S))
+  fitxy = transform.dot(circle)
+  oa   = [[fitxy[0][0],fitxy[1][0]],
+          [fitxy[0][1],fitxy[1][1]]]
+  axdir = [np.degrees(np.arctan(fitxy[0][0]/fitxy[1][0])),
+           np.degrees(np.arctan(fitxy[0][1]/fitxy[1][1]))]
+  axdir = [d-360 if d>180 else d for d in axdir]
 
   # Ensure major and minor axes in correct order
-  if axdist[0]<axdist[1]:
-    axdist = axdist[::-1]
-    axdir  = axdir[::-1]
+  if axlen[0]<axlen[1]:
+    axlen = axlen[::-1]
+    axdir = axdir[::-1]
 
   # Get 1000 point data fit for the ellipse
   if fit or plot:
     # Define a unit circle
     tt = np.linspace(0, 2*np.pi, 1000)
     circle = np.stack((np.cos(tt), np.sin(tt)))
-  
+
     # Define transformation matrix
     transform = np.sqrt(2/N) * U.dot(np.diag(S))
-    fitxy = transform.dot(circle)+ \
-     np.array([[center[0]],[center[1]]])
+    fitxy = transform.dot(circle)
 
   # Plot ellipse and data
   if plot:
@@ -231,7 +234,7 @@ def fit_ellipse_svd_earth(x,y,center,fit=False,plot=False):
     # Make plot with data
     print("Plotting ellipse")
     import matplotlib.pyplot as plt
-    plt.plot(x, y, '.')
+    plt.plot(xc, yc, '.')
     plt.gca().set_aspect('equal', adjustable='box')
     plt.grid(True)
 
@@ -239,20 +242,20 @@ def fit_ellipse_svd_earth(x,y,center,fit=False,plot=False):
     plt.plot(fitxy[0, :], fitxy[1, :], 'r')
 
     # Plot center
-    plt.plot(center[0],center[1],".r")
+    plt.plot(0,0,"r")
 
     # Plot major axis
-    x1 = center[0]-((axlen[0]/2)*np.sin(np.deg2rad(axdir[0])))
-    x2 = center[0]+((axlen[0]/2)*np.sin(np.deg2rad(axdir[0])))
-    y1 = center[1]-((axlen[0]/2)*np.cos(np.deg2rad(axdir[0])))
-    y2 = center[1]+((axlen[0]/2)*np.cos(np.deg2rad(axdir[0])))
+    x1 = -((axlen[0]/2)*np.sin(np.deg2rad(axdir[0])))
+    x2 = +((axlen[0]/2)*np.sin(np.deg2rad(axdir[0])))
+    y1 = -((axlen[0]/2)*np.cos(np.deg2rad(axdir[0])))
+    y2 = +((axlen[0]/2)*np.cos(np.deg2rad(axdir[0])))
     plt.plot([x1,x2],[y1,y2])
 
     # Plot minor axis
-    x1 = center[0]-((axlen[1]/2)*np.sin(np.deg2rad(axdir[1])))
-    x2 = center[0]+((axlen[1]/2)*np.sin(np.deg2rad(axdir[1])))
-    y1 = center[1]-((axlen[1]/2)*np.cos(np.deg2rad(axdir[1])))
-    y2 = center[1]+((axlen[1]/2)*np.cos(np.deg2rad(axdir[1])))
+    x1 = -((axlen[1]/2)*np.sin(np.deg2rad(axdir[1])))
+    x2 = +((axlen[1]/2)*np.sin(np.deg2rad(axdir[1])))
+    y1 = -((axlen[1]/2)*np.cos(np.deg2rad(axdir[1])))
+    y2 = +((axlen[1]/2)*np.cos(np.deg2rad(axdir[1])))
     plt.plot([x1,x2],[y1,y2])
 
     # Show plot
@@ -260,214 +263,104 @@ def fit_ellipse_svd_earth(x,y,center,fit=False,plot=False):
 
   if fit:
     # Also return fit
-    return(center,axdir,axlen,fitxy)
+    return(axdir,axlen,fitxy)
   else:
     # Return center, and direction and length of major and minor
     #  axes
-    return(center,axdir,axdist)
+    return(axdir,axlen)
 
 
 #==================================================================
-# Fit an ellipse to a set of 2D data points with SVD
+# Peridiodic center of mass on earth calculation
 #==================================================================
 
-def fit_ellipse_svd_cart(x,y,center,fit=False,plot=False):
+def periodic_cmass_earth(lon):
   """
-  Fit an ellipse to a set of 2D data points with singular value 
-   decomposition (SVD)
+  Calculates the center of mass for a periodic domain. Input is x
+   but this can be repeated for any coordinate if you have multiple
+   periodic coordinates.
 
   Input: 
-   1,2) Lists of x and y coordinates to fit the ellipse to
+   1) Lists of 1D coordinates in -180->179.999... or 0->359.999...
 
   Output:
-   1) A list with x and y location of ellipse center
-   2) A list with major and minor axes angle from north
-   3) A list with major and minor axes geographic distances
+   1) Center of mass location in same coordinate system as input.
 
   Requires numpy 1.16.3 (conda install -c anaconda numpy; 
    https://pypi.org/project/numpy/)
+
+  Method from:
+  https://en.wikipedia.org/wiki/Center_of_mass
   """
 
-  # Get number of points
-  N = len(x)
-
-  # Get distance to center for all points
-  xc = x - center[0]
-  yc = y - center[1]
-
-  # Do singular value decomposition
-  U, S = np.linalg.svd(np.stack((xc, yc)))[0:2]
-
-  # Calculate angle of axes
-  axdir = [mfns.cartesian_direction(center[0],center[1],
-           center[0]+a[0],center[1]+a[1]) for a in U]
-  axdir = [d-180 if d>180 else d for d in axdir]
-
-  # Calculate length in degrees of axes
-  axlen = [2*np.sqrt(2/N)*l for l in S]
-
-  # Calculate geopgraphic distance of axes
-  axdist = [mfns.cartesian_distance(
-   center[0] - ((axlen[i]/2)*np.sin(np.deg2rad(axdir[i]))),
-   center[0] + ((axlen[i]/2)*np.sin(np.deg2rad(axdir[i]))),
-   center[1] - ((axlen[i]/2)*np.cos(np.deg2rad(axdir[i]))),
-   center[1] + ((axlen[i]/2)*np.cos(np.deg2rad(axdir[i]))))
-                                for i in range(len(axlen))]
-
-#  axdist =  [gfns.calc_distance(center[0] - ((axlen[i]/2)* \
-#                       np.sin(np.deg2rad(axdir[i]))), \
-#                       center[1] - ((axlen[i]/2)* \
-#                       np.cos(np.deg2rad(axdir[i]))), \
-#                       center[0] + ((axlen[i]/2)* \
-#                       np.sin(np.deg2rad(axdir[i]))), \
-#                       center[1] + ((axlen[i]/2)* \
-#                       np.cos(np.deg2rad(axdir[i])))) \
-#             for i in range(len(axlen))]
-
-  # Ensure major and minor axes in correct order
-  if axdist[0]<axdist[1]:
-    axdist = axdist[::-1]
-    axdir  = axdir[::-1]
-
-  # Get 1000 point data fit for the ellipse
-  if fit or plot:
-    # Define a unit circle
-    tt = np.linspace(0, 2*np.pi, 1000)
-    circle = np.stack((np.cos(tt), np.sin(tt)))
+  # Calculate variables
+  xiibar   = np.cos(np.radians(lon))
+  zetaibar = np.sin(np.radians(lon))
   
-    # Define transformation matrix
-    transform = np.sqrt(2/N) * U.dot(np.diag(S))
-    fitxy = transform.dot(circle)+ \
-     np.array([[center[0]],[center[1]]])
-
-  # Plot ellipse and data
-  if plot:
-
-    # Make plot with data
-    print("Plotting ellipse")
-    import matplotlib.pyplot as plt
-    plt.plot(x, y, '.')
-    plt.gca().set_aspect('equal', adjustable='box')
-    plt.grid(True)
-
-    # Plot ellipse
-    plt.plot(fitxy[0, :], fitxy[1, :], 'r')
-
-    # Plot center
-    plt.plot(center[0],center[1],".r")
-
-    # Plot major axis
-    x1 = center[0]-((axlen[0]/2)*np.sin(np.deg2rad(axdir[0])))
-    x2 = center[0]+((axlen[0]/2)*np.sin(np.deg2rad(axdir[0])))
-    y1 = center[1]-((axlen[0]/2)*np.cos(np.deg2rad(axdir[0])))
-    y2 = center[1]+((axlen[0]/2)*np.cos(np.deg2rad(axdir[0])))
-    plt.plot([x1,x2],[y1,y2])
-
-    # Plot minor axis
-    x1 = center[0]-((axlen[1]/2)*np.sin(np.deg2rad(axdir[1])))
-    x2 = center[0]+((axlen[1]/2)*np.sin(np.deg2rad(axdir[1])))
-    y1 = center[1]-((axlen[1]/2)*np.cos(np.deg2rad(axdir[1])))
-    y2 = center[1]+((axlen[1]/2)*np.cos(np.deg2rad(axdir[1])))
-    plt.plot([x1,x2],[y1,y2])
-
-    # Show plot
-    plt.show()
-
-  if fit:
-    # Also return fit
-    return(center,axdir,axlen,fitxy)
+  # Check coordinate system and return center of mass in same
+  #  coordinate system
+  cmass = np.degrees(np.pi+
+   np.arctan2(-np.mean(zetaibar),-np.mean(xiibar)))
+  if min(lon)<0:
+    if 180<cmass<360:
+      return(cmass-360)
+    elif cmass==180:
+      return(cmass-360)
+    else:
+      return(cmass)
   else:
-    # Return center, and direction and length of major and minor
-    #  axes
-    return(center,axdir,axdist)
-
-
+    if cmass==360:
+      return(cmass-360)
+    else:
+      return(cmass)
 
 #==================================================================
 # Plot PF and ellipse
 #==================================================================
 
-def plot_pf_ellipse(x,y,z,center,axdir,axlen,fit):
+def convert_cendirlen_latlon_earth(center,direction,length):
   """
-  
+  Converts a line with bearing, length, and a center to lat and 
+   lon coordinates.
 
   Input: 
-   1,2) 
+   1) center of mass for data [lon, lat] converted to radians
+   2) direction/bearing (as clockwise angle from north)
+   3) lengths (km)
 
-  Output:
-   1) 
-   2) 
-   3) 
+  Outputs lat and lon points at ends of line
 
   Requires numpy 1.16.3 (conda install -c anaconda numpy; 
    https://pypi.org/project/numpy/)
   """
 
-  # Make plot with data
-  print("Plotting ellipse")
-  import matplotlib.pyplot as plt
-  import nclcmaps
-  cmap = nclcmaps.cmap('WhiteBlueGreenYellowRed')
-  cs = plt.pcolormesh(x, y, z,cmap=cmap,vmin=10,vmax=60)
-  cbar = plt.colorbar(cs, pad=.1, fraction=0.06)   
-  plt.gca().set_aspect('equal', adjustable='box')
-  plt.grid(True)
+  # Constants
+  R = 6378.1 #Radius of the Earth km
 
-  # Plot ellipse
-  plt.plot(fit[0, :], fit[1, :], 'r')
+  # Convert direction to radians
+  direction = np.radians(direction)
 
-  # Plot center
-  plt.plot(center[0],center[1],".r")
+  # Get northern most latitude of line
+  lat2 = np.degrees(
+   np.arcsin(np.sin(center[1])*np.cos(length*.0005/R) + \
+   np.cos(center[1])*np.sin(length*.0005/R)*\
+   np.cos(direction)))
 
-  # Plot major axis
-  x1 = center[0]-((axlen[0]/2)*np.sin(np.deg2rad(axdir[0])))
-  x2 = center[0]+((axlen[0]/2)*np.sin(np.deg2rad(axdir[0])))
-  y1 = center[1]-((axlen[0]/2)*np.cos(np.deg2rad(axdir[0])))
-  y2 = center[1]+((axlen[0]/2)*np.cos(np.deg2rad(axdir[0])))
-  plt.plot([x1,x2],[y1,y2])
+  # Get southern most latitude of line
+  lat1 = np.degrees(
+   np.arcsin(np.sin(center[1])*np.cos(length*.0005/R) + \
+   np.cos(center[1])*np.sin(length*.0005/R)*\
+   np.cos(direction-np.pi)))
 
-  # Plot minor axis
-  x1 = center[0]-((axlen[1]/2)*np.sin(np.deg2rad(axdir[1])))
-  x2 = center[0]+((axlen[1]/2)*np.sin(np.deg2rad(axdir[1])))
-  y1 = center[1]-((axlen[1]/2)*np.cos(np.deg2rad(axdir[1])))
-  y2 = center[1]+((axlen[1]/2)*np.cos(np.deg2rad(axdir[1])))
-  plt.plot([x1,x2],[y1,y2])
+  # Get eastern and western most longitude of line
+  faclon = np.arctan2(np.sin(direction)*\
+   np.sin(length*.0005/R)*np.cos(center[1]),\
+   np.cos(length*.0005/R)-np.sin(center[1])*np.sin(center[1]))
+  lon2 = np.degrees(center[0] + faclon)
+  lon1 = np.degrees(center[0] - faclon)
 
-  # Show plot
-  plt.show()
+  return(lon2,lon1,lat2,lat1)
 
 #==================================================================
-# Plot PF and ellipse
+# End functions
 #==================================================================
-
-def plot_pf(x,y,z):
-  """
-  
-
-  Input: 
-   1,2) 
-
-  Output:
-   1) 
-   2) 
-   3) 
-
-  Requires numpy 1.16.3 (conda install -c anaconda numpy; 
-   https://pypi.org/project/numpy/)
-  """
-
-  # Make plot with data
-  print("Plotting ellipse")
-  import matplotlib.pyplot as plt
-  import nclcmaps
-  cmap = nclcmaps.cmap('WhiteBlueGreenYellowRed')
-  cs = plt.pcolormesh(x, y, z,cmap=cmap,vmin=10,vmax=60)
-  cbar = plt.colorbar(cs, pad=.1, fraction=0.06)   
-  plt.gca().set_aspect('equal', adjustable='box')
-  plt.grid(True)
-
-  # Show plot
-  plt.show()
-
-
-

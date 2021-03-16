@@ -2,21 +2,17 @@
 # Geophysical functions
 #==================================================================
 # 
-# Functions to calculate various geophysical things
-# James Russell 2020
+# James Russell, University of Utah, 2021
 #
 # Tested with:
 # * numpy 1.16.3
-# * scipy 1.2.1
-# * matplotlib 3.0.3
-# * pandas 0.24.2
 # * cartopy 0.17.0
 # * shapely 1.6.4
 # * fiona 1.8.6
 # * area 1.1.1
-# * pyproj 1.9.6
 # * geopy 1.20.0
-#
+# * netCDF4 1.4.2
+# 
 # Description of functions:
 #
 # * calc_area
@@ -588,14 +584,15 @@ def calc_if_TC(lon,lat,TCinfo,fTC):
 
 def lonFlip(lons,dstoflip):
   """
-  Calculates proximity to TC. 
+  Flips 
 
   Inputs:
-   1) list of longitudes -180->180 or 0->360
+   1) list of longitudes -180->180 or 0->360 corresponding to 
+       input dataset
    2) A dataset with lon the last dimension
 
-  Outputs a new lon array and dataset flipped such that new_slon
-   is the first value
+  Outputs a new lon array and dataset flipped such that the new
+   lon array is the coordinate
   """
 
   # Is -180->180 or 0->360?
@@ -637,7 +634,7 @@ def lonFlip(lons,dstoflip):
     lon2 = lons[ind[0]:] # 180->360
 
     # Correct values from 180->360 to be -180->0
-    lon2 = np.where(lon2<0,lon2-360,lon2) # -180->0
+    lon2 = np.where(lon2>0,lon2-360,lon2) # -180->0
 
     # Make new lon array
     lonnew = np.append(lon2,lon1) # -180->0 + 0->180
@@ -653,5 +650,5 @@ def lonFlip(lons,dstoflip):
   return(lonnew,dsnew)
 
 #==================================================================
-# End
+# End functions
 #==================================================================

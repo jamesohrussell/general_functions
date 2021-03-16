@@ -4,8 +4,20 @@
 #
 # James Russell 2020
 #
+# * cartesian_distance
+#
+# * cartesian_speed
+#
+# * cartesian_direction
+#
+# * divzero
+#   - Division where divide by zero equals 0 instead of an error
+#
 # * k_closest
 #   - Finds the k closest values in a list to a given value
+#
+#   k_closest_ma
+#   - As above but adapts for masked arrays
 #
 # * create_2d_dataframe
 #   - Generates a dataframe from lists of coordinates and 
@@ -14,6 +26,9 @@
 # * write_var
 #   - Defines/opens a variable and writes the data to a 
 #      netcdf file.
+#
+# * write_var_compress
+#   - As above but with compression
 #
 # * write_group
 #   - Defines/opens a group and writes data to a data group
@@ -47,7 +62,6 @@ def cartesian_distance(x1,x2,y1,y2):
 
   # Calculate speed
   return(np.sqrt((x2-x1)**2+(y2-y1)**2))
-
 
 
 #==================================================================
@@ -237,6 +251,8 @@ def create_2d_dataframe(x,y,dx,dy,data):
             [str(i) for i in ny],[str(i) for i in nx])
 
   # Populate dataframe
+  x = [round(i,2) for i in x]
+  y = [round(i,2) for i in y]
   for i in range(len(y)): df.loc[str(y[i]),str(x[i])] = data[i]
 
   # Return dataframe
@@ -340,5 +356,6 @@ def write_group(groupname,long_name,description,units,
    for k,v in datain.items():
      setattr(datadatafile, k,  v)
 
-
-
+#==================================================================
+# End functions
+#==================================================================

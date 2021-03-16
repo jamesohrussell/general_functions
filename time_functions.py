@@ -5,22 +5,23 @@
 # Functions to calculate various time related variables.
 # James Russell 2020
 #
-# * time_since
+# * time_since (replicates NCL cd_calendar)
 #   - From a string indicating the time and date and a units 
 #     since reference time and date, calculate a time number.
 #
-# * time_since_inv
+# * time_since_inv (replicates NCL cd_calendar_inv)
 #   - Converts a time number and its units into a date and time 
 #      string.
 #
-# * calc_local_time
-#   - Takes a date and time, and a location, and calculates
-#      the local time.
+# * utc_to_local - converts utc to local time using timezone
 #
 # * calc_local_solar_time
 #   - Takes a date and time, and a longitude, and adds an 
 #      offset factor to give a local solar time (i.e. for a
 #      diurnal cycle). Not the actual local time.
+#
+# * calc_local_solar_hour
+#   - As above but just outputs the hour
 #
 #==================================================================
 # Import libraries
@@ -178,10 +179,10 @@ def utc_to_local(utcdatetime,timezone):
 
 
 #==================================================================
-# Calculate local solar time based on longitude
+# Calculate local solar date based on longitude
 #==================================================================
 
-def calc_local_solar_time(yr,mo,dy,hr,mn,sc,lon):
+def calc_local_solar_date(yr,mo,dy,hr,mn,sc,lon):
   """
   Calculates the local solar time given a date and time and 
    location. Calculated as the UTC time plus an offset based 
@@ -218,3 +219,49 @@ def calc_local_solar_time(yr,mo,dy,hr,mn,sc,lon):
          str(newtime.second).zfill(2))
 
 
+#==================================================================
+# Calculate local solar date based on longitude
+#==================================================================
+
+def calc_local_solar_hour(datenum,dnunits,lon):
+  """
+  Calculates the local solar time given a date and time and 
+   location. Calculated as the UTC time plus an offset based 
+   on the longitude. The offset is calculated by multiplying 
+   the longitude by 24/360. 
+
+  Inputs:
+   1) The date and time (dt). dt is a string indicating UTC
+    time in format YYYYMMDDhhmmss.
+   2) The longitude position (lon). lon is the longitude 
+    position as a float.
+
+  Output is a string in YYYYMMDDhhmmss format indicating the
+   local solar time.
+
+  Note: This is not the actual local time. This should 
+   typically only be used to calculate times for the 
+   diurnal cycle.
+  """
+
+  t = time_since_inv(datenum,dnunits)
+  yr = t[0:4]
+  mo = t[5:7]
+  dy = t[8:10]
+  hr = t[11:13]
+  mn = t[14:16]
+  sc = t[17:19]
+
+  # Make a datetime object for the current date and time
+  timenow = dt.datetime(int(yr),int(mo),int(dy),
+                        int(hr),int(mn),int(sc))
+ 
+  # Calculate time with offset added
+  newtime = timenow + dt.timedelta(hours=lon*(24./360.))
+  
+  # Return time in same format as input
+  return(int(newtime.hour))
+
+#==================================================================
+# End functions
+#==================================================================
