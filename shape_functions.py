@@ -20,15 +20,6 @@
 #   - Uses singular value decomposition to define an ellipse given 
 #      a set of points in 2d
 #
-# * periodic_cmass_earth
-#   - Calculates a center of mass for a set of points on earth 
-#      with the zonal direction periodic
-#
-# * convert_cendirlen_latlon_earth
-#   - Takes a central point, direction/bearing, and length in km,
-#      and converts it to a line with lat,lon coordinates for the 
-#      two ends of the line
-#
 #==================================================================
 # Import libraries
 #==================================================================
@@ -36,11 +27,10 @@
 import scipy.ndimage as ndimg
 import numpy as np
 from matplotlib.path import Path
-import geophys_functions as gfns
-import misc_functions as mfns
-from geopy.distance import geodesic
 import matplotlib.pyplot as plt
-import cmaps
+from geopy.distance import geodesic
+import earth_functions as efns
+import misc_functions as mfns
 
 #==================================================================
 # Identify contiguous areas in 2d field 
@@ -127,7 +117,7 @@ def find_corners(coords,dx,dy,dp=2):
 # Find which points are inside a shape
 #==================================================================
 
-def points_in_shape(verts,points,widen=0):
+def points_in_shape(verts,points,widen=0,output="coordsTrue"):
   """
   Finds and returns all grid points within a list of vertices 
    defining a shape. 
@@ -140,7 +130,7 @@ def points_in_shape(verts,points,widen=0):
        computational issues, sometimes the shape doesn't include
        points on the edge. By widening the shape slightly, you 
        can ensure points are included. Positive values widen the 
-       shape when the vertcies are ordered counterclockwise and
+       shape when the vertices are ordered counterclockwise and
        negative widens the shape when the vertices are ordered
        clockwise. Default is 0 - no widening.
 
@@ -157,29 +147,50 @@ def points_in_shape(verts,points,widen=0):
   grid = p.contains_points(points,radius=widen)
 
   # Return list of coordinate tuples for points inside shape
-  return([points[i] for i, x in enumerate(grid) if x])
-
+  if output=="coordsTrue":
+    return([points[i] for i, x in enumerate(grid) if x])
+  elif output=="TrueFalse":
+    return(grid)
 
 
 #==================================================================
 # Fit an ellipse to a set of 2D data points with SVD
 #==================================================================
 
-def fit_ellipse_svd_earth(x,y,center,fit=False,plot=False):
+def fit_ellipse_svd_earth(x,y,center,goodness=False,
+  dx=None,dy=None,plot=False):
   """
   Fit an ellipse to a set of 2D data points with singular value 
    decomposition (SVD)
 
   Input: 
-   1,2) Lists of x and y coordinates to fit the ellipse to
-   3) Center lon and lat as pair in tuple
-   4) Output the 1000 point ellipse fit
-   5) Make a figure
+   1,2) x,y: Lists of x and y coordinates to fit the ellipse to
+   3) center: Center lon and lat as pair in tuple
+   Optional:
+   goodness: Calculate goodness of the ellipse fit. Requires dx,dy.
+   dx,dy: For the goodness of fit for the ellipse, we calculate 
+    the number of points within the ellipse and divide this by
+    the number of points possible within the ellipse. The 
+    algorithm takes the max and min x,y points and then calculates
+    a grid based on a grid spacing dx,dy for this.
+   plot: Make a figure
 
   Output:
-   1) A list with x and y location of ellipse center
-   2) A list with major and minor axes angle from north
-   3) A list with major and minor axes geographic distances
+   1) A list with major and minor axes angle from north
+   2) A list with major and minor axes geographic distances
+   Optional:
+   3) goodness (scalar): This is adapted from a typical goodness
+      of fit for an ellipse to account for a filled ellipse. In a
+      typical goodness of fit, it is simply the sum of the 
+      distance to the ellipse edge. However, this treats points in
+      the ellipse equally to those outside which is undesirable. 
+      The goodness here is calculated as follows:
+       fill factor = (n points in ellipse / n points possible
+        within ellipse) * (n points in ellipse/ total n points)
+       residual outside = (1 - (mean of distances between points 
+        outside ellipse to nearest point on ellipse / mean radius
+        of ellipse )) * (n points outside ellipse/ total n points)
+       goodness = fill factor * residual outside
 
   Requires numpy 1.16.3 (conda install -c anaconda numpy; 
    https://pypi.org/project/numpy/)
@@ -189,20 +200,22 @@ def fit_ellipse_svd_earth(x,y,center,fit=False,plot=False):
   N = len(x)
 
   # Get distance to center for all points in cartesian space
-  xc = [geodesic((center[1],ln),(center[1],center[0])).m if ln>center[0] else
-       -geodesic((center[1],ln),(center[1],center[0])).m if ln<center[0] else
-       0. for ln in x]
-  yc = [geodesic((lt,center[0]),(center[1],center[0])).m if lt>center[1] else
-       -geodesic((lt,center[0]),(center[1],center[0])).m if lt<center[1] else
-       0. for lt in y]
+  xc = [geodesic((center[1],ln),(center[1],center[0])).m
+       if ln>center[0] else
+       -geodesic((center[1],ln),(center[1],center[0])).m 
+       if ln<center[0] else 0. for ln in x]
+  yc = [geodesic((lt,center[0]),(center[1],center[0])).m 
+       if lt>center[1] else
+       -geodesic((lt,center[0]),(center[1],center[0])).m 
+       if lt<center[1] else 0. for lt in y]
 
   # Do singular value decomposition
   U,S = np.linalg.svd(np.stack((xc, yc)))[0:2]
 
-  # Calculate length in degrees of axes
+  # Calculate length of axes in degrees
   axlen = [2*np.sqrt(2/N)*l for l in S]
 
-  # Calculate angle of axes
+  # Calculate angle of axes in -180-180
   tt = np.linspace(0, 2*np.pi, 5)
   circle = np.stack((np.cos(tt), np.sin(tt)))
   transform = np.sqrt(2/N) * U.dot(np.diag(S))
@@ -213,27 +226,72 @@ def fit_ellipse_svd_earth(x,y,center,fit=False,plot=False):
            np.degrees(np.arctan(fitxy[0][1]/fitxy[1][1]))]
   axdir = [d-360 if d>180 else d for d in axdir]
 
-  # Ensure major and minor axes in correct order
+  # Ensure major and minor axes are in correct order
   if axlen[0]<axlen[1]:
     axlen = axlen[::-1]
     axdir = axdir[::-1]
 
-  # Get 1000 point data fit for the ellipse
-  if fit or plot:
+  # Get 50 point data fit for the ellipse
+  if plot or goodness:
+
     # Define a unit circle
-    tt = np.linspace(0, 2*np.pi, 1000)
+    tt = np.linspace(0, 2*np.pi, 50)
     circle = np.stack((np.cos(tt), np.sin(tt)))
 
     # Define transformation matrix
     transform = np.sqrt(2/N) * U.dot(np.diag(S))
-    fitxy = transform.dot(circle)
+    fitxy  = transform.dot(circle)
+
+  # Get goodness of fit
+  if goodness:
+
+    # Get vertices of ellipse
+    verts  = list(zip(fitxy[0],fitxy[1]))
+
+    # Get all possible grid points in lat lon
+    nx = [round(i,2) for i in 
+     np.arange(min(x),max(x)+dx,dx)]
+    ny = [round(i,2) for i in 
+     np.arange(min(y),max(y)+dy,dy)]
+    grid = np.meshgrid(nx,ny)
+
+    # Get cartesian coordinates of all grid points
+    xg = [geodesic((center[1],ln),
+     (center[1],center[0])).m if ln>center[0] else
+     -geodesic((center[1],ln),(center[1],center[0])).m 
+     if ln<center[0] else 0. for ln in 
+     list(np.array(grid[0]).flatten())]
+    yg = [geodesic((lt,center[0]),
+     (center[1],center[0])).m if lt>center[1] else
+     -geodesic((lt,center[0]),(center[1],center[0])).m 
+     if lt<center[1] else 0. for lt in
+     list(np.array(grid[1]).flatten())]
+    glls = list(zip(xg,yg))
+
+    # Get first factor (fraction of points within ellipse 
+    #  that are filled scaled by the fraction of all the 
+    #  points they represent)
+    points = list(zip(xc,yc))
+    pointsin = points_in_shape(verts,points,output="TrueFalse")
+    fac1 = sum(pointsin)**2/\
+     (len(points_in_shape(verts,glls))*len(pointsin)) 
+
+    # Get second factor ()
+    pointsout = [points[i] for i, x in enumerate(pointsin) 
+     if not x]     
+    fac2 = (1-np.mean([min([mfns.cartesian_distance(
+     p[0],v[0],p[1],v[1])
+     for v in verts]) for p in pointsout])/(.5*np.mean(axlen)))\
+     *(sum(pointsin==False)/len(pointsin))
+ 
+    # Get goodness factor
+    goodness = fac1+fac2
 
   # Plot ellipse and data
   if plot:
 
     # Make plot with data
     print("Plotting ellipse")
-    import matplotlib.pyplot as plt
     plt.plot(xc, yc, '.')
     plt.gca().set_aspect('equal', adjustable='box')
     plt.grid(True)
@@ -261,105 +319,14 @@ def fit_ellipse_svd_earth(x,y,center,fit=False,plot=False):
     # Show plot
     plt.show()
 
-  if fit:
+  if goodness:
     # Also return fit
-    return(axdir,axlen,fitxy)
+    return(axdir,axlen,goodness)
   else:
     # Return center, and direction and length of major and minor
     #  axes
     return(axdir,axlen)
 
-
-#==================================================================
-# Peridiodic center of mass on earth calculation
-#==================================================================
-
-def periodic_cmass_earth(lon):
-  """
-  Calculates the center of mass for a periodic domain. Input is x
-   but this can be repeated for any coordinate if you have multiple
-   periodic coordinates.
-
-  Input: 
-   1) Lists of 1D coordinates in -180->179.999... or 0->359.999...
-
-  Output:
-   1) Center of mass location in same coordinate system as input.
-
-  Requires numpy 1.16.3 (conda install -c anaconda numpy; 
-   https://pypi.org/project/numpy/)
-
-  Method from:
-  https://en.wikipedia.org/wiki/Center_of_mass
-  """
-
-  # Calculate variables
-  xiibar   = np.cos(np.radians(lon))
-  zetaibar = np.sin(np.radians(lon))
-  
-  # Check coordinate system and return center of mass in same
-  #  coordinate system
-  cmass = np.degrees(np.pi+
-   np.arctan2(-np.mean(zetaibar),-np.mean(xiibar)))
-  if min(lon)<0:
-    if 180<cmass<360:
-      return(cmass-360)
-    elif cmass==180:
-      return(cmass-360)
-    else:
-      return(cmass)
-  else:
-    if cmass==360:
-      return(cmass-360)
-    else:
-      return(cmass)
-
-#==================================================================
-# Plot PF and ellipse
-#==================================================================
-
-def convert_cendirlen_latlon_earth(center,direction,length):
-  """
-  Converts a line with bearing, length, and a center to lat and 
-   lon coordinates.
-
-  Input: 
-   1) center of mass for data [lon, lat] converted to radians
-   2) direction/bearing (as clockwise angle from north)
-   3) lengths (km)
-
-  Outputs lat and lon points at ends of line
-
-  Requires numpy 1.16.3 (conda install -c anaconda numpy; 
-   https://pypi.org/project/numpy/)
-  """
-
-  # Constants
-  R = 6378.1 #Radius of the Earth km
-
-  # Convert direction to radians
-  direction = np.radians(direction)
-
-  # Get northern most latitude of line
-  lat2 = np.degrees(
-   np.arcsin(np.sin(center[1])*np.cos(length*.0005/R) + \
-   np.cos(center[1])*np.sin(length*.0005/R)*\
-   np.cos(direction)))
-
-  # Get southern most latitude of line
-  lat1 = np.degrees(
-   np.arcsin(np.sin(center[1])*np.cos(length*.0005/R) + \
-   np.cos(center[1])*np.sin(length*.0005/R)*\
-   np.cos(direction-np.pi)))
-
-  # Get eastern and western most longitude of line
-  faclon = np.arctan2(np.sin(direction)*\
-   np.sin(length*.0005/R)*np.cos(center[1]),\
-   np.cos(length*.0005/R)-np.sin(center[1])*np.sin(center[1]))
-  lon2 = np.degrees(center[0] + faclon)
-  lon1 = np.degrees(center[0] - faclon)
-
-  return(lon2,lon1,lat2,lat1)
 
 #==================================================================
 # End functions

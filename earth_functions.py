@@ -59,6 +59,15 @@
 # * lonFlip
 #   - Flip dataset about a chosen longitude
 #
+# * periodic_cmass
+#   - Calculates a center of mass for a set of points on earth 
+#      with the zonal direction periodic
+#
+# * convert_cendirlen_latlon
+#   - Takes a central point, direction/bearing, and length in km,
+#      and converts it to a line with lat,lon coordinates for the 
+#      two ends of the line
+#
 #==================================================================
 # Import libraries
 #==================================================================
@@ -648,6 +657,100 @@ def lonFlip(lons,dstoflip):
 
   # Return new lon and dataset
   return(lonnew,dsnew)
+
+
+#==================================================================
+# Peridiodic center of mass on earth calculation
+#==================================================================
+
+def periodic_cmass(lon):
+  """
+  Calculates the center of mass for a periodic domain. Input is x
+   but this can be repeated for any coordinate if you have multiple
+   periodic coordinates.
+
+  Input: 
+   1) Lists of 1D coordinates in -180->179.999... or 0->359.999...
+
+  Output:
+   1) Center of mass location in same coordinate system as input.
+
+  Requires numpy 1.16.3 (conda install -c anaconda numpy; 
+   https://pypi.org/project/numpy/)
+
+  Method from:
+  https://en.wikipedia.org/wiki/Center_of_mass
+  """
+
+  # Calculate variables
+  xiibar   = np.cos(np.radians(lon))
+  zetaibar = np.sin(np.radians(lon))
+  
+  # Check coordinate system and return center of mass in same
+  #  coordinate system
+  cmass = np.degrees(np.pi+
+   np.arctan2(-np.mean(zetaibar),-np.mean(xiibar)))
+  if min(lon)<0:
+    if 180<cmass<360:
+      return(cmass-360)
+    elif cmass==180:
+      return(cmass-360)
+    else:
+      return(cmass)
+  else:
+    if cmass==360:
+      return(cmass-360)
+    else:
+      return(cmass)
+
+
+#==================================================================
+# Plot PF and ellipse
+#==================================================================
+
+def convert_cendirlen_latlon(center,direction,length):
+  """
+  Converts a line with bearing, length, and a center to lat and 
+   lon coordinates.
+
+  Input: 
+   1) center of mass for data [lon, lat] converted to radians
+   2) direction/bearing (as clockwise angle from north)
+   3) lengths (km)
+
+  Outputs lat and lon points at ends of line
+
+  Requires numpy 1.16.3 (conda install -c anaconda numpy; 
+   https://pypi.org/project/numpy/)
+  """
+
+  # Constants
+  R = 6378.1 #Radius of the Earth km
+
+  # Convert direction to radians
+  direction = np.radians(direction)
+
+  # Get northern most latitude of line
+  lat2 = np.degrees(
+   np.arcsin(np.sin(center[1])*np.cos(length*.0005/R) + \
+   np.cos(center[1])*np.sin(length*.0005/R)*\
+   np.cos(direction)))
+
+  # Get southern most latitude of line
+  lat1 = np.degrees(
+   np.arcsin(np.sin(center[1])*np.cos(length*.0005/R) + \
+   np.cos(center[1])*np.sin(length*.0005/R)*\
+   np.cos(direction-np.pi)))
+
+  # Get eastern and western most longitude of line
+  faclon = np.arctan2(np.sin(direction)*\
+   np.sin(length*.0005/R)*np.cos(center[1]),\
+   np.cos(length*.0005/R)-np.sin(center[1])*np.sin(center[1]))
+  lon2 = np.degrees(center[0] + faclon)
+  lon1 = np.degrees(center[0] - faclon)
+
+  return(lon2,lon1,lat2,lat1)
+
 
 #==================================================================
 # End functions

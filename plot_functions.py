@@ -19,9 +19,12 @@
 # Import libraries
 #==================================================================
 
+import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import numpy as np
 import shape_functions as sfns
+import earth_functions as efns
+import cmaps
 
 #==================================================================
 # Truncates a colormap
@@ -89,11 +92,11 @@ def plot_pixel_axes_earth(x,y,z,center=None,axdir=None,axlen=None):
     clat = np.radians(center[1])
 
     lon2mj,lon1mj,lat2mj,lat1mj = \
-     sfns.convert_cendirlen_latlon_earth(
+     efns.convert_cendirlen_latlon(
      [clon,clat],axdir[0],axlen[0])
 
     lon2mn,lon1mn,lat2mn,lat1mn = \
-     sfns.convert_cendirlen_latlon_earth(
+     efns.convert_cendirlen_latlon(
      [clon,clat],axdir[1],axlen[1])
 
     # Plot major axis
