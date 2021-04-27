@@ -10,6 +10,12 @@
 #
 # * cartesian_direction
 #
+# * mean_angle
+#
+# * variance_angle
+#
+# * diff_angle
+#
 # * divzero
 #   - Division where divide by zero equals 0 instead of an error
 #
@@ -123,6 +129,80 @@ def cartesian_direction(x1,y1,x2,y2):
   # Return direction
   return(direction)
 
+
+#==================================================================
+# Average a set of angles
+#==================================================================
+
+def mean_var_angle(angles,axis=-1,calc_mean=True,calc_var=False):
+  """
+  Average of angles.
+
+  Input: 
+   1) An n-d array of angles in units of degrees. Default is to 
+      take average along last dimension. Angles should be in 
+      -180->179.9999... or 0->359.9999... 
+
+  Output:
+   An n-d array with angles averaged along last dimension.
+   
+  """
+
+  # Convert angles to points on unit circle
+  xi   = np.cos(np.radians(angles))
+  zeta = np.sin(np.radians(angles))
+
+  # Calculate mean
+  if calc_mean:
+
+    # Formula to calculate mean angle
+    mean = np.degrees(
+     np.pi+np.arctan2(-np.nanmean(zeta,axis=axis),
+                      -np.nanmean(xi  ,axis=axis)))
+
+    # Adjust for input angles
+    if np.amin(angles)<0:
+      mean = np.where(mean>=180,mean-360,mean)
+    else:
+      mean = np.where(mean==360,0,mean)
+
+  # Calculate variance
+  if calc_var:
+    var = 1-(np.sqrt(
+     np.nansum(xi)**2 + np.nansum(zeta)**2
+     )/sum(np.isfinite(angles)))
+
+  # Return variables
+  if calc_mean and calc_var:
+    return(mean,var)
+  elif calc_mean and not calc_var:
+    return(mean)
+  elif not calc_mean and calc_var:
+    return(var)
+
+#==================================================================
+# Angle difference
+#==================================================================
+
+def diff_angle(ang1,ang2):
+  """
+  Difference between angles.
+
+  Input: 
+   1) An n-d array of angles in units of degrees. Angles should be
+      in -180->179.9999... or 0->359.9999... 
+   2) An n-d array of angles in units of degrees corresponding to 
+      ang1. Angles should be in same system as ang1.
+
+  Output:
+   An n-d array with shape ang1,ang2 with differences between the
+   corresponding angles.
+   
+  """
+
+  # Get difference using modulus
+  r = (ang1 - ang2) % 360.0
+  return(np.where(r>=180.0,r-360,r))
 
 
 #==================================================================

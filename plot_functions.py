@@ -25,6 +25,7 @@ import numpy as np
 import shape_functions as sfns
 import earth_functions as efns
 import cmaps
+import cartopy.feature as cfeature
 
 #==================================================================
 # Truncates a colormap
@@ -105,6 +106,49 @@ def plot_pixel_axes_earth(x,y,z,center=None,axdir=None,axlen=None):
 
   # Show plot
   plt.show()
+
+#==================================================================
+# Plot map background
+#==================================================================
+
+def plot_map_background(ax,res='50m',lw=.5):
+  """
+  Plots a map background on the provided axes
+
+  Input: 
+   1) ax to plot background on
+   2) res: map resolution, default 50 arc minutes
+   3) lw: line width for map drawing, default 0.5
+   
+  Returns axes with map drawn
+
+  Requires cartopy 0.17.0
+  """
+  ax.add_feature(cfeature.COASTLINE.with_scale(res), linewidth=lw)
+  return ax
+
+#==================================================================
+# Truncate (get fraction of) a color map
+#==================================================================
+
+def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
+  """
+  Truncates a color map
+
+  Input: 
+   1) A colormap from which to extract a truncated version
+   2,3) minval/maxval: start/end point for new colormap as 
+    fraction of input colormap
+   4) n: number of colors
+   
+  Returns new truncated colormap
+
+  Requires matplotlib
+  """
+  new_cmap = colors.LinearSegmentedColormap.from_list(
+   'trunc({n},{a:.2f},{b:.2f})'.format(n=cmap.name,
+   a=minval,b=maxval),cmap(np.linspace(minval, maxval, n)))
+  return new_cmap
 
 #==================================================================
 # End functions

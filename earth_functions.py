@@ -254,6 +254,58 @@ def calc_direction(lon1,lat1,lon2,lat2):
   # Return direction
   return(direction)
 
+#==================================================================
+# Calculate direction on earth
+#==================================================================
+
+def calc_dir_vec_from_north(xv,yv):
+  """
+  Calculates direction on earth between two sets of 
+   latitude, longitude coordinates.
+
+  Inputs:
+  1) Array-like of vectors in zonal (x) direction
+  2) Array-like of vectors in meridional (y) direction
+
+  Output is the direction in degrees from north.
+  """
+
+  # Calculate direction from north correcting for quadrant
+  direction = np.degrees(np.arctan2(xv,yv))
+
+  # Adjust to be 0 to 360
+  direction = np.where(direction<0,direction+360,direction)
+
+  # Return direction
+  return(direction)
+
+
+
+#==================================================================
+# Calculate direction on earth
+#==================================================================
+
+def calc_dir_vec_from_east(xv,yv):
+  """
+  Calculates direction on earth between two sets of 
+   latitude, longitude coordinates.
+
+  Inputs:
+  1) Array-like of vectors in zonal (x) direction
+  2) Array-like of vectors in meridional (y) direction
+
+  Output is the direction in degrees from east.
+  """
+
+  # Calculate direction from north correcting for quadrant
+  direction = np.degrees(np.arctan2(yv,xv))
+
+  # Adjust to be 0 to 360
+  direction = np.where(direction<0,direction+360,direction)
+
+  # Return direction
+  return(direction)
+
 
 
 #==================================================================
@@ -611,8 +663,8 @@ def lonFlip(lons,dstoflip):
   # If currently -180->180 flip to 0->360
   if val==0:
 
-    # Find closest index to new start
-    ind = mfns.k_closest(lons,0,1)
+    # Find closest index to new start (for positibve lons)
+    ind = mfns.k_closest(lons,min(lons[lons>0]),1)
 
     # Split lons into two arrays
     lon1 = lons[:ind[0]] #-180->0
@@ -624,7 +676,7 @@ def lonFlip(lons,dstoflip):
 
     # Make new lon array
     lonnew = np.append(lon2,lon1) # 0->180 + 180->360
-
+  
     # Split lons into two arrays
     dsshape = dstoflip.shape
     dsflat  = dstoflip.reshape(-1,dsshape[-1])
@@ -636,7 +688,7 @@ def lonFlip(lons,dstoflip):
   else:
 
     # Find closest index to new start
-    ind = mfns.k_closest(lons,180,1)
+    ind = mfns.k_closest(lons,min(lons[lons>180]),1)
 
     # Split lons into two arrays
     lon1 = lons[:ind[0]] # 0->180
