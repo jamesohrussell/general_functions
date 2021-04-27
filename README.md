@@ -1,6 +1,6 @@
 # Generic Python functions for geophysical and data science
 
-geophys_functions:
+earth_functions:
  * calc_area
  * calc_area_and_volrainrate
  * calc_distance
